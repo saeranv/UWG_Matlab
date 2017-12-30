@@ -1,0 +1,48 @@
+# Created by Octave 4.2.1, Tue Nov 21 22:58:14 2017 GMT <unknown@unknown>
+# name: epwDir
+# type: string
+# elements: 1
+# length: 36
+C:\saeran\master\git\UWG_Matlab\data
+
+
+# name: epwFileName
+# type: string
+# elements: 1
+# length: 29
+SGP_Singapore.486980_IWEC.epw
+
+
+# name: matrix
+# type: matrix
+# rows: 3
+# columns: 3
+ 0 0 0
+ 0 0 0
+ 0 0 0
+
+
+# name: out
+# type: scalar
+1
+
+
+# name: out2
+# type: scalar
+2
+
+
+# name: uwgParamDir
+# type: string
+# elements: 1
+# length: 36
+C:\saeran\master\git\UWG_Matlab\data
+
+
+# name: uwgParamFileName
+# type: string
+# elements: 1
+# length: 12
+initialize.m
+
+
