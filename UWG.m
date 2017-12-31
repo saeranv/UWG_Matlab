@@ -61,7 +61,7 @@ function [new_climate_file] = UWG(CL_EPW_PATH,CL_EPW,CL_XML_PATH,CL_XML,CL_RE_PA
         climate_data = strcat(epwPathName,epwFileName);
     end
 
-    %disp(['Rural weather file selected: ',climate_data])
+    disp(['Rural weather file selected: ',climate_data])
     epwid = fopen(climate_data);
     C = importdata(climate_data, ',', 8);
     
@@ -108,13 +108,17 @@ function [new_climate_file] = UWG(CL_EPW_PATH,CL_EPW,CL_XML_PATH,CL_XML,CL_RE_PA
     fclose all;
 
     % Save location for the new EPW file
-    newFileName_withExt = 'newepw.epw';
-    newPathName = "..\UWG_Python\matlab_ref\matlab_epw\";
-    new_climate_file = strcat(newPathName,newFileName_withExt);
-    newPathName = newPathName(1:end-1);
+    try
+        new_climate_file = strcat(CL_RE_PATH,'\',CL_RE);
+        newPathName = CL_RE_PATH;
+    catch
+        [newFileName_withExt,newPathName] = uiputfile('.epw','Select save location');
+        new_climate_file = strcat(newPathName,newFileName_withExt);
+        newPathName = newPathName(1:end-1);
+    end
 
     [~,newFileName,~] = fileparts(new_climate_file);
-    %disp(['Save location selected: ',new_climate_file]);
+    disp(['Save location selected: ',new_climate_file]);
     
     % =========================================================================
     % Section 3 - Read Input File (xlsm, XML, .m, file)
@@ -284,37 +288,7 @@ function [new_climate_file] = UWG(CL_EPW_PATH,CL_EPW,CL_XML_PATH,CL_XML,CL_RE_PA
             latTree,latGrss,albVeg,vegStart,vegEnd,nightStart,nightEnd,windMin,wgmax,c_exch,maxdx,...
             g, cp, vk, r, rv, lv, pi(), sigma, waterDens, lvtt, tt, estt, cl, cpv, b, cm, colburn);
         UBL = UBLDef('C',charLength,weather.staTemp(1),maxdx,geoParam.dayBLHeight,geoParam.nightBLHeight); 
-        
-        % Define Road Element & buffer to match ground temperature depth
-        [roadMat, newthickness] = procMat(road,max_thickness,min_thickness,ext);
-        for i = 1:n_soil
-            if sum(newthickness) <= depth(i)
-                while(sum(newthickness)<depth(i))
-                    newthickness = [newthickness; max_thickness];
-                    roadMat = [roadMat soil];
-                end
-                soilindex1 = i;
-                break;
-            end
-        end
-        road = Element(road.albedo,road.emissivity,newthickness,roadMat,...
-            road.vegCoverage,road.layerTemp(1),road.horizontal);
 
-        % Define Rural Element
-        [ruralMat, newthickness] = procMat(rural,max_thickness,min_thickness,ext);
-        for i = 1:n_soil
-            if sum(newthickness) <= depth(i)
-                while(sum(newthickness)<depth(i))
-                    newthickness = [newthickness; max_thickness];
-                    ruralMat = [ruralMat soil];
-                end
-                soilindex2 = i;
-                break;
-            end
-        end
-        rural = Element(rural.albedo,rural.emissivity,newthickness,ruralMat,...
-            rural.vegCoverage,rural.layerTemp(1),rural.horizontal);
-        
         % Define BEM for each DOE type (read the fraction)
         load ('RefDOE.mat');
 
@@ -348,6 +322,23 @@ function [new_climate_file] = UWG(CL_EPW_PATH,CL_EPW,CL_XML_PATH,CL_XML,CL_RE_PA
         RSM = RSMDef(lat,lon,GMT,h_obs,weather.staTemp(1),weather.staPres(1),geoParam);
         USM = RSMDef(lat,lon,GMT,bldHeight/10,weather.staTemp(1),weather.staPres(1),geoParam);
         
+        % For .m file, assume the soil depth is close to one of the ground
+        % soil depth specified in EPW (0.5, 1.0, 2.0)
+        for i = 1:n_soil
+            if sum(road.layerThickness) <= depth(i)
+                soilindex1 = i;
+                break;
+            end
+        end
+
+        % Same for rural road
+        for i = 1:n_soil
+            if sum(rural.layerThickness) <= depth(i)
+                soilindex2 = i;
+                break;
+            end
+        end
+
     elseif strcmp(ext,'.xml')
         % Some numbers not specified in XML
         maxdx = 500;            % maximum discretization length for the UBL model (m)
@@ -397,7 +388,7 @@ function [new_climate_file] = UWG(CL_EPW_PATH,CL_EPW,CL_XML_PATH,CL_XML,CL_RE_PA
         
         % Define Road Element & buffer to match ground temperature depth
         urbanRoad = xmlUCM.urbanRoad;
-        [roadMat, newthickness] = procMat(urbanRoad.materials,max_thickness,min_thickness,ext);
+        [roadMat, newthickness] = procMat(urbanRoad.materials,max_thickness,min_thickness);
         for i = 1:n_soil
             if sum(newthickness) <= depth(i)
                 while(sum(newthickness)<depth(i))
@@ -413,7 +404,7 @@ function [new_climate_file] = UWG(CL_EPW_PATH,CL_EPW,CL_XML_PATH,CL_XML,CL_RE_PA
 
         % Define Rural Element
         ruralRoad = xmlRSite.ruralRoad;
-        [ruralMat, newthickness] = procMat(ruralRoad.materials,max_thickness,min_thickness,ext);
+        [ruralMat, newthickness] = procMat(ruralRoad.materials,max_thickness,min_thickness);
         for i = 1:n_soil
             if sum(newthickness) <= depth(i)
                 while(sum(newthickness)<depth(i))
@@ -662,7 +653,7 @@ function [new_climate_file] = UWG(CL_EPW_PATH,CL_EPW,CL_XML_PATH,CL_XML,CL_RE_PA
         rural.infra = forc.infra-rural.emissivity*sigma*rural.layerTemp(1)^4.;
         rural = SurfFlux(rural,forc,geoParam,simTime,forc.hum,forc.temp,forc.wind,2,0.);
         RSM = VDM(RSM,forc,rural,geoParam,simTime);
-        %{        
+                
         % Calculate urban heat fluxes, update UCM & UBL
         [UCM,UBL,BEM] = UrbFlux(UCM,UBL,BEM,forc,geoParam,simTime,RSM);
         UCM = UCModel(UCM,BEM,UBL.ublTemp,forc,geoParam);
@@ -714,20 +705,19 @@ function [new_climate_file] = UWG(CL_EPW_PATH,CL_EPW,CL_XML_PATH,CL_XML,CL_RE_PA
                 bCOP(n,i) = BEM(i).building.copAdj;
             end
             progressbar(it/simTime.nt); % Print progress
-            %}
         end
 
     end
-    %progressbar(1); % Close progress bar
-    %{
+    progressbar(1); % Close progress bar
+
     % =========================================================================
     % Section 8 - Writing new EPW file
     % =========================================================================
     if strcmp('Yes',writeEPW)
         disp('Calculating new Temperature and humidity values')
         for iJ = 1:numel(UCMData)
-            epwinput.values{iJ+simTime.timeInitial-8,7}{1,1} = num2str(UCMData(iJ).canTemp- 273.15,'%0.1f'); % dry bulb temperature  [?C]
-            epwinput.values{iJ+simTime.timeInitial-8,8}{1,1} = num2str(UCMData(iJ).Tdp,'%0.1f'); % dew point temperature [?C]
+            epwinput.values{iJ+simTime.timeInitial-8,7}{1,1} = num2str(UCMData(iJ).canTemp- 273.15,'%0.1f'); % dry bulb temperature  [°C]
+            epwinput.values{iJ+simTime.timeInitial-8,8}{1,1} = num2str(UCMData(iJ).Tdp,'%0.1f'); % dew point temperature [°C]
             epwinput.values{iJ+simTime.timeInitial-8,9}{1,1} = num2str(UCMData(iJ).canRHum,'%0.0f'); % relative humidity     [%]
             epwinput.values{iJ+simTime.timeInitial-8,22}{1,1} = num2str(WeatherData(iJ).wind,'%0.1f'); % wind speed [m/s]
         end
@@ -1006,76 +996,58 @@ function [new_climate_file] = UWG(CL_EPW_PATH,CL_EPW,CL_XML_PATH,CL_XML,CL_RE_PA
     else
         h = msgbox('Urban Weather Generation Complete',strcat('UWG',num2str(ver)),'help');
     end
-    %}
-%end
 
-function [newmat, newthickness] = procMat(materials,max_thickness,min_thickness,ext)
+end
+
+function [newmat, newthickness] = procMat(materials,max_thickness,min_thickness)
     % Pocesses material layer so that a material with single
     % layer thickness is divided into two and material layer that is too
     % thick is subdivided
     
     newmat = [];
     newthickness = [];
-    
-    if strcmp(ext,'.xml')
-        %disp('road buffer from .xml input');
-        k = materials.thermalConductivity;
-        Vhc = materials.volumetricHeatCapacity;
-        thickness = materials.thickness;
-    else % from .m input
-        %disp('road buffer from .m input');
-        k = materials.layerThermalCond;
-        Vhc = materials.layerVolHeat;
-        thickness = materials.layerThickness;
-    end
-    
-    if numel(thickness)>1
-        for j = 1:numel(thickness)
+
+    k = materials.thermalConductivity;
+    Vhc = materials.volumetricHeatCapacity;
+    if numel(materials.thickness)>1
+        for j = 1:numel(materials.thickness)
             % Break up each layer that's more than 5cm thick
-            if thickness(j) > max_thickness
-                nlayers = ceil(thickness(j)/max_thickness);
+            if materials.thickness(j) > max_thickness
+                nlayers = ceil(materials.thickness(j)/max_thickness);
                 for l = 1:nlayers
-                    if strcmp(ext,'.xml')
-                        newmat = [newmat Material(k{j},Vhc{j})];
-                    else
-                        newmat = [newmat Material(k(j),Vhc(j))];
-                    end
-                    newthickness = [newthickness; thickness(j)/nlayers];
+                    newmat = [newmat Material(k{j},Vhc{j})];
+                    newthickness = [newthickness; materials.thickness(j)/nlayers];
                 end
                 
             % Material that's less then min_thickness is not added.
-            elseif thickness(j) < min_thickness
+            elseif materials.thickness(j) < min_thickness
 %                 newmat = [newmat Material(k{j},Vhc{j})];
 %                 newthickness = [newthickness; min_thickness];
                 disp('WARNING: Material layer found too thin (<1cm), ignored');
             else
-                if strcmp(ext,'.xml')
-                    newmat = [newmat Material(k{j},Vhc{j})];
-                else
-                    newmat = [newmat Material(k(j),Vhc(j))];
-                end
-                newthickness = [newthickness; thickness(j)];
+                newmat = [newmat Material(k{j},Vhc{j})];
+                newthickness = [newthickness; materials.thickness(j)];
             end
         end
     else
         % Divide single layer into two (UWG assumes at least 2 layers)
-        if thickness > max_thickness
-            nlayers = ceil(thickness/max_thickness);
+        if materials.thickness > max_thickness
+            nlayers = ceil(materials.thickness/max_thickness);
             for l = 1:nlayers
                 newmat = [newmat Material(k,Vhc)];
-                newthickness = [newthickness; thickness/nlayers];
+                newthickness = [newthickness; materials.thickness/nlayers];
             end
             
         % Material should be at least 1cm thick, so if we're here, 
         % should give warning and stop. Only warning given for now.
-        elseif thickness < min_thickness*2
+        elseif materials.thickness < min_thickness*2
             newthickness = [min_thickness/2; min_thickness/2];
             newmat = [Material(k,Vhc) Material(k,Vhc)];
             disp('WARNING: a thin (<2cm) single layer element found');
             disp('May cause error');
 
         else
-            newthickness = [thickness/2; thickness/2];
+            newthickness = [materials.thickness/2; materials.thickness/2];
             newmat = [Material(k,Vhc) Material(k,Vhc)];
         end
     end
