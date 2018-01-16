@@ -71,7 +71,7 @@ classdef RSMDef
                       pp = 0;
                    end   
                 end
-                
+
                 % vertical profiles at the rural site
                 obj.tempProf = ones(1,obj.nzref)*T_init;
                 obj.presProf = ones(1,obj.nzref)*P_init;
@@ -81,7 +81,9 @@ classdef RSMDef
                        parameter.g/parameter.cp*(P_init^(parameter.r/parameter.cp))*(1./obj.tempProf(iz)+...
                        1./obj.tempProf(iz-1))*0.5*obj.dz(iz))^(1./(parameter.r/parameter.cp));
                 end
-
+                
+                %obj.presProf(:)
+                
                 obj.tempRealProf = ones(1,obj.nzref)*T_init;
                 for iz=1:obj.nzref;
                    obj.tempRealProf(iz)=obj.tempProf(iz)*...
@@ -102,12 +104,13 @@ classdef RSMDef
                 obj.windProf = ones(1,obj.nzref);
 
             end
+            
         end
             
         % Ref: The UWG (2012), Eq. (4)
-        function obj = VDM(obj,forc,rural,parameter,simTime)
+        function obj = VDM(obj,forc,rural,parameter,simTime,debug)
 
-            obj.tempProf(1) = forc.temp;    % Lower boundary condition  
+            obj.tempProf(1) = forc.temp;    % Lower boundary condition
             % compute pressure profile
             for iz=obj.nzref:-1:2
                obj.presProf(iz-1)=(obj.presProf(iz)^(parameter.r/parameter.cp)+...
@@ -115,28 +118,38 @@ classdef RSMDef
                    (1./obj.tempProf(iz)+1./obj.tempProf(iz-1))*...
                    0.5*obj.dz(iz))^(1./(parameter.r/parameter.cp));
             end
+            
             % compute the real temperature profile
             for iz=1:obj.nzref
                obj.tempRealProf(iz)=obj.tempProf(iz)*...
                    (obj.presProf(iz)/forc.pres)^(parameter.r/parameter.cp);
             end
+
+            
+            
+            
             % compute the density profile
             for iz=1:obj.nzref
                obj.densityProfC(iz)=obj.presProf(iz)/parameter.r/obj.tempRealProf(iz);
             end
+            
             obj.densityProfS(1)=obj.densityProfC(1);
+  
             for iz=2:obj.nzref
                obj.densityProfS(iz)=(obj.densityProfC(iz)*obj.dz(iz-1)+...
                    obj.densityProfC(iz-1)*obj.dz(iz))/(obj.dz(iz-1)+obj.dz(iz));
             end
             obj.densityProfS(obj.nzref+1)=obj.densityProfC(obj.nzref);
-            
+
             % Ref: The UWG (2012), Eq. (5)
             % compute diffusion coefficient
+            
             [cd,ustarRur] = DiffusionCoefficient(obj.densityProfC(1),...
                 obj.z,obj.dz,obj.z0r,obj.disp,...
                 obj.tempProf(1),rural.sens,obj.nzref,forc.wind,...
                 obj.tempProf,parameter);
+            
+            %{
             % solve diffusion equation
             obj.tempProf = DiffusionEquation(obj.nzref,simTime.dt,...
                 obj.tempProf,obj.densityProfC,obj.densityProfS,cd,obj.dz);
@@ -152,6 +165,8 @@ classdef RSMDef
                     obj.presProf(iz)*obj.dz(iz)/...
                     (obj.z(obj.nzref)+obj.dz(obj.nzref)/2);
             end
+            %}
+
         end
     end
 end
@@ -191,7 +206,7 @@ end
 
 function [Kt,ustar] = DiffusionCoefficient(rho,z,dz,z0,disp,...
     tempRur,heatRur,nz,uref,th,parameter)
-
+    
     % Initialization
     Kt = zeros(1,nz+1);
     ws = zeros(1,nz);
@@ -221,6 +236,17 @@ function [Kt,ustar] = DiffusionCoefficient(rho,z,dz,z0,disp,...
     end
     % lenght scales (l_up, l_down, l_k, l_eps)
     [dlu,dld] = DissipationBougeault(parameter.g,nz,z,dz,te,th);
+    
+    
+    %simTime.month
+    %simTime.day
+    %simTime.secDay/3600.
+    %format long;
+    dlu
+    dld
+    size(dlu)
+    size(dld)
+    
     [dld,dls,dlk]= LengthBougeault(nz,dld,dlu,z);
     % Boundary-layer diffusion coefficient
     for iz=1:nz
@@ -234,6 +260,7 @@ function [dlu,dld] = DissipationBougeault(g,nz,z,dz,te,pt)
 
     dlu = zeros(nz,1);
     dld = zeros(nz,1);
+    
     for iz=1:nz
         zup=0.;
         dlu(iz)=z(nz+1)-z(iz)-dz(iz)/2.;

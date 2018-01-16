@@ -64,6 +64,7 @@ classdef Element
                     eg = obj.aeroCond*parameter.colburn*dens*(qtsat-humRef)/parameter.waterDens/parameter.cp;
                     obj.waterStorage = min(obj.waterStorage + simTime.dt*(forc.prec-eg),parameter.wgmax);
                     obj.waterStorage = max(obj.waterStorage,0);
+                    
                 else
                     eg = 0;
                 end
@@ -98,6 +99,7 @@ classdef Element
             obj.layerTemp = Conduction(obj,simTime.dt,obj.flux,boundCond,forc.deepTemp,intFlux);
             obj.T_ext = obj.layerTemp(1);
             obj.T_int = obj.layerTemp(end);
+            
         end
         
         function t = Conduction(obj,dt,flx1,bc,temp2,flx2)
@@ -122,6 +124,7 @@ classdef Element
             za = zeros(num,3);
             % RHS
             zy = zeros(num,1);
+            
             %--------------------------------------------------------------------------
             hcp(1) = hc(1)* d(1);
             for j=2:num;
@@ -133,6 +136,7 @@ classdef Element
             za(1,2) = hcp(1)/dt + fimp*tcp(2);
             za(1,3) = -fimp*tcp(2);
             zy(1) = hcp(1)/dt*t(1) - fexp*tcp(2)*(t(1)-t(2)) + flx1;
+            
             %--------------------------------------------------------------------------
             for j=2:num-1;
               za(j,1) = fimp*(-tcp(j));
@@ -141,6 +145,7 @@ classdef Element
               zy(j) = hcp(j)/dt*t(j)+fexp*(tcp(j)*t(j-1)-...
                   tcp(j)*t(j)-tcp(j+1)*t(j)+ tcp(j+1)*t(j+1));
             end
+            
             %--------------------------------------------------------------------------
             if eq(bc,1) % het flux
                 za(num,1) = fimp*(- tcp(num) );
@@ -198,16 +203,15 @@ function x = Invert(nz,a,c)
     %--------------------------------------------------------------------------                     
 
     x = zeros(nz,1);
-
-    for in=nz-1:-1:1                 
+    for in=nz-1:-1:1
         c(in)=c(in)-a(in,3)*c(in+1)/a(in+1,2);
         a(in,2)=a(in,2)-a(in,3)*a(in+1,1)/a(in+1,2);
     end
-
+    
     for in=2:nz        
         c(in)=c(in)-a(in,1)*c(in-1)/a(in-1,2);
     end
-
+    
     for in=1:nz
         x(in)=c(in)/a(in,2);
     end

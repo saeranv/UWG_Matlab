@@ -223,6 +223,7 @@ for i = 1:16
             Insulation = Material (0.049, 836.8 * 265.0);
             Gypsum = Material (0.16, 830.0 * 784.9);
             Wood = Material (0.11,1210.0*544.62);
+                
                                     
             % Wall (1 in stucco, concrete, insulation, gypsum)
             if strcmp(TypeWall(j,k),'MassWall')

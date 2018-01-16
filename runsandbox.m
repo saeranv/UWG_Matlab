@@ -3,7 +3,7 @@
 epwDir = ".\\data";
 epwFileName = "SGP_Singapore.486980_IWEC.epw";
 uwgParamDir = ".\\data";
-uwgParamFileName = "initialize.m";
+uwgParamFileName = "initialize.m";%_2_feb16.m";
 
 UWG(epwDir, epwFileName, uwgParamDir, uwgParamFileName);
 

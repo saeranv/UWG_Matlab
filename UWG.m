@@ -95,7 +95,9 @@ function [new_climate_file] = UWG(CL_EPW_PATH,CL_EPW,CL_XML_PATH,CL_XML,CL_RE_PA
             Tsoil(i,j) = str2double(soildata{3+(i-1)*13+j})+273.15;
         end
     end
-
+    
+    
+    
     % Read weather data from EPW for each time step in weather file
     i = 1;
     readin = fgetl(epwid);
@@ -287,6 +289,7 @@ function [new_climate_file] = UWG(CL_EPW_PATH,CL_EPW,CL_XML_PATH,CL_XML,CL_RE_PA
         
         % Define Road Element & buffer to match ground temperature depth
         [roadMat, newthickness] = procMat(road,max_thickness,min_thickness,ext);
+        
         for i = 1:n_soil
             if sum(newthickness) <= depth(i)
                 while(sum(newthickness)<depth(i))
@@ -314,7 +317,7 @@ function [new_climate_file] = UWG(CL_EPW_PATH,CL_EPW,CL_XML_PATH,CL_XML,CL_RE_PA
         end
         rural = Element(rural.albedo,rural.emissivity,newthickness,ruralMat,...
             rural.vegCoverage,rural.layerTemp(1),rural.horizontal);
-        
+
         % Define BEM for each DOE type (read the fraction)
         load ('RefDOE.mat');
 
@@ -346,7 +349,7 @@ function [new_climate_file] = UWG(CL_EPW_PATH,CL_EPW,CL_XML_PATH,CL_XML,CL_RE_PA
         
         % Reference site class (also include VDM)
         RSM = RSMDef(lat,lon,GMT,h_obs,weather.staTemp(1),weather.staPres(1),geoParam);
-        USM = RSMDef(lat,lon,GMT,bldHeight/10,weather.staTemp(1),weather.staPres(1),geoParam);
+        %USM = RSMDef(lat,lon,GMT,bldHeight/10,weather.staTemp(1),weather.staPres(1),geoParam);
         
     elseif strcmp(ext,'.xml')
         % Some numbers not specified in XML
@@ -511,7 +514,8 @@ function [new_climate_file] = UWG(CL_EPW_PATH,CL_EPW,CL_XML_PATH,CL_XML,CL_RE_PA
     else
         return;
     end  
-
+    
+    
     % =========================================================================
     % Section 6 - HVAC Autosizing (unlimited cooling & heating)
     % =========================================================================
@@ -525,6 +529,7 @@ function [new_climate_file] = UWG(CL_EPW_PATH,CL_EPW,CL_XML_PATH,CL_XML,CL_RE_PA
     % =========================================================================
     % Section 7 - UWG main section
     % =========================================================================
+    
     N = simTime.days * 24;
     n = 0;
     ph = simTime.dt/3600;       % per hour
@@ -562,7 +567,7 @@ function [new_climate_file] = UWG(CL_EPW_PATH,CL_EPW,CL_XML_PATH,CL_XML,CL_RE_PA
     bTmassin = zeros (N,numel(BEM));  
     bCOP = zeros(N,numel(BEM));
     bVent = zeros (N,numel(BEM));
-
+    
     for it=1:(simTime.nt-1)
 
         % Update water temperature (estimated)
@@ -657,11 +662,62 @@ function [new_climate_file] = UWG(CL_EPW_PATH,CL_EPW,CL_XML_PATH,CL_XML,CL_RE_PA
             end
 
         end
-                        
+        
         % Update rural heat fluxes & update vertical diffusion model (VDM)
+        
         rural.infra = forc.infra-rural.emissivity*sigma*rural.layerTemp(1)^4.;
         rural = SurfFlux(rural,forc,geoParam,simTime,forc.hum,forc.temp,forc.wind,2,0.);
-        RSM = VDM(RSM,forc,rural,geoParam,simTime);
+        
+        %if it ==(simTime.nt-1) - (11*12)%- (12*24*15 + 11*12)
+        %if it == ((simTime.nt-1)-11*12) || it ==  1  
+        %if it == ((simTime.nt-1) - (30*24*12 + 11*12))
+        %    simTime.month
+        %    simTime.day
+        %    simTime.secDay/3600.0
+        %    rural.waterStorage
+            
+        %end
+            
+            %{
+            fileID = fopen('..\UWG_Python\tests\matlab_ref\matlab_element\matlab_ref_element_surfflux.txt','w');
+            format long;
+            fprintf(fileID, "%.16f\n", rural.aeroCond);
+            fprintf(fileID, "%.16f\n", rural.waterStorage);
+            fprintf(fileID, "%.16f\n", rural.solAbs);
+            fprintf(fileID, "%.16f\n", rural.lat);
+            fprintf(fileID, "%.16f\n", rural.sens);
+            fprintf(fileID, "%.16f\n", rural.flux);
+            fprintf(fileID, "%.16f\n", rural.T_ext);
+            fprintf(fileID, "%.16f\n", rural.T_int);
+            fclose(fileID);
+            %}
+        %end
+        
+         
+        
+        if it == 1
+            RSM = VDM(RSM,forc,rural,geoParam,simTime,1);
+        end
+        break%RSM = VDM(RSM,forc,rural,geoParam,simTime,0);
+                
+        %{
+        if it ==(simTime.nt-1) - (12*24*15 + 13*12)
+            simTime.month
+            simTime.day
+            simTime.secDay/3600.
+            fileID = fopen('..\UWG_Python\tests\matlab_ref\matlab_rsmdef\matlab_ref_rsmdef_vdm.txt','w');
+            format long;
+            fprintf(fileID, '%.16f\n', RSM.presProf(:));
+            fprintf(fileID, '%.16f\n', RSM.tempRealProf(:));
+            fprintf(fileID, '%.16f\n', RSM.densityProfC(:));
+            fprintf(fileID, '%.16f\n', RSM.densityProfS(:));
+            fprintf(fileID, '%.16f\n', RSM.tempProf(:));
+            fprintf(fileID, '%.16f\n', RSM.windProf(:));
+            fprintf(fileID, '%.16f\n', RSM.ublPres(:));
+            fclose(fileID);
+        end
+        %}
+        
         %{        
         % Calculate urban heat fluxes, update UCM & UBL
         [UCM,UBL,BEM] = UrbFlux(UCM,UBL,BEM,forc,geoParam,simTime,RSM);
