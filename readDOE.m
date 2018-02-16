@@ -49,7 +49,7 @@ refDOE (16,3,16) = Building;
 Schedule (16,3,16) = SchDef;
 refBEM (16,3,16) = BEMDef;
 
-
+%{
 format long;
 %%{
 fileID0=fopen("../UWG_Python/tests/matlab_ref/matlab_readDOE/matlab_ref_floorHeight_.txt",'w');
@@ -77,7 +77,7 @@ fileID21=fopen("../UWG_Python/tests/matlab_ref/matlab_readDOE/matlab_ref_indoorH
 fileID22=fopen("../UWG_Python/tests/matlab_ref/matlab_readDOE/matlab_ref_heatCap_.txt",'w');
 fileID23=fopen("../UWG_Python/tests/matlab_ref/matlab_readDOE/matlab_ref_copAdj_.txt",'w');
 fileID24=fopen("../UWG_Python/tests/matlab_ref/matlab_readDOE/matlab_ref_canyon_fraction_.txt",'w');
-%%}
+%}
 
 for i = 1:16
     file = strcat('.\data\DOERefBuildings\BLD',num2str(i),'.xlsx');
@@ -180,7 +180,7 @@ for i = 1:16
             refDOE(i,j,k).Type = bldType(i);
             refDOE(i,j,k).Era = builtEra(j);
             refDOE(i,j,k).Zone = zoneType(k);
-            
+            %{
             format long;
             
             fprintf(fileID0,'%.16f\n',refDOE(i,j,k).floorHeight);
@@ -207,7 +207,7 @@ for i = 1:16
             fprintf(fileID21,'%.16f\n',refDOE(i,j,k).indoorHum);
             fprintf(fileID22,'%.16f\n',refDOE(i,j,k).heatCap);
             fprintf(fileID23,'%.16f\n',refDOE(i,j,k).copAdj);
-            
+            %}
             
             %disp(refDOE(i,j,k).vent);
             
@@ -375,7 +375,7 @@ for i = 1:16
 
     end
 end
-
+%{
 fclose(fileID0);
 fclose(fileID1);
 fclose(fileID2);
@@ -401,7 +401,7 @@ fclose(fileID21);
 fclose(fileID22);
 fclose(fileID23);
 fclose(fileID24);
-
+%}
         
 % % BUBBLE/TOULOUSE adjustment Case
 % refBEM(6,2,5).building.glazingRatio = 0.3;

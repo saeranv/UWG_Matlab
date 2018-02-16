@@ -94,7 +94,7 @@ classdef RSMDef
                 for iz=1:obj.nzref;
                    obj.densityProfC(iz)=obj.presProf(iz)/parameter.r/obj.tempRealProf(iz);
                 end
-                                obj.densityProfS = obj.densityProfC(1)*ones(1,obj.nzref+1);
+                obj.densityProfS = obj.densityProfC(1)*ones(1,obj.nzref+1);
                 for iz=2:obj.nzref;
                    obj.densityProfS(iz)=(obj.densityProfC(iz)*obj.dz(iz-1)+...
                        obj.densityProfC(iz-1)*obj.dz(iz))/(obj.dz(iz-1)+obj.dz(iz));
@@ -149,7 +149,6 @@ classdef RSMDef
                 obj.tempProf(1),rural.sens,obj.nzref,forc.wind,...
                 obj.tempProf,parameter);
             
-            %{
             % solve diffusion equation
             obj.tempProf = DiffusionEquation(obj.nzref,simTime.dt,...
                 obj.tempProf,obj.densityProfC,obj.densityProfS,cd,obj.dz);
@@ -165,7 +164,8 @@ classdef RSMDef
                     obj.presProf(iz)*obj.dz(iz)/...
                     (obj.z(obj.nzref)+obj.dz(obj.nzref)/2);
             end
-            %}
+
+            
 
         end
     end
@@ -237,15 +237,7 @@ function [Kt,ustar] = DiffusionCoefficient(rho,z,dz,z0,disp,...
     % lenght scales (l_up, l_down, l_k, l_eps)
     [dlu,dld] = DissipationBougeault(parameter.g,nz,z,dz,te,th);
     
-    
-    %simTime.month
-    %simTime.day
-    %simTime.secDay/3600.
-    %format long;
-    dlu
-    dld
-    size(dlu)
-    size(dld)
+
     
     [dld,dls,dlk]= LengthBougeault(nz,dld,dlu,z);
     % Boundary-layer diffusion coefficient

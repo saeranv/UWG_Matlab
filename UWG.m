@@ -242,6 +242,9 @@ function [new_climate_file] = UWG(CL_EPW_PATH,CL_EPW,CL_XML_PATH,CL_XML,CL_RE_PA
             end 
         end
         
+
+
+        
         % Reference site class (also include VDM)
         RSM = RSMDef(lat,lon,GMT,h_obs,weather.staTemp(1),weather.staPres(1),geoParam);
         USM = RSMDef(lat,lon,GMT,bldHeight/10,weather.staTemp(1),weather.staPres(1),geoParam);
@@ -349,7 +352,7 @@ function [new_climate_file] = UWG(CL_EPW_PATH,CL_EPW,CL_XML_PATH,CL_XML,CL_RE_PA
         
         % Reference site class (also include VDM)
         RSM = RSMDef(lat,lon,GMT,h_obs,weather.staTemp(1),weather.staPres(1),geoParam);
-        %USM = RSMDef(lat,lon,GMT,bldHeight/10,weather.staTemp(1),weather.staPres(1),geoParam);
+        USM = RSMDef(lat,lon,GMT,bldHeight/10,weather.staTemp(1),weather.staPres(1),geoParam);
         
     elseif strcmp(ext,'.xml')
         % Some numbers not specified in XML
@@ -514,7 +517,21 @@ function [new_climate_file] = UWG(CL_EPW_PATH,CL_EPW,CL_XML_PATH,CL_XML,CL_RE_PA
     else
         return;
     end  
-    
+
+    %{
+    fileID = fopen('..\UWG_Python\tests\matlab_ref\matlab_ubl\matlab_ref_ubl_init.txt','w');
+    format long;
+    fprintf(fileID, "%.16f\n", UBL.charLength);
+    fprintf(fileID, "%.16f\n", UBL.perimeter);
+    fprintf(fileID, "%.16f\n", UBL.urbArea);
+    fprintf(fileID, "%.16f\n", UBL.orthLength);
+    fprintf(fileID, "%.16f\n", UBL.paralLength);
+    fprintf(fileID, "%.16f\n", UBL.ublTemp);
+    fprintf(fileID, "%.16f\n", sum(UBL.ublTempdx(:)));
+    fprintf(fileID, "%.16f\n", UBL.dayBLHeight);
+    fprintf(fileID, "%.16f\n", UBL.nightBLHeight);
+    fclose(fileID);
+    %}
     
     % =========================================================================
     % Section 6 - HVAC Autosizing (unlimited cooling & heating)
@@ -525,7 +542,42 @@ function [new_climate_file] = UWG(CL_EPW_PATH,CL_EPW,CL_XML_PATH,CL_XML,CL_RE_PA
             BEM(j).building.heatCap = 9999;  
         end
     end
-
+    
+    %{
+    fileID = fopen('..\UWG_Python\tests\matlab_ref\matlab_bem\matlab_ref_bem_building_init_largeoffice.txt','w');
+    format long;
+    fprintf(fileID, "%.16f\n", BEM(1).building.floorHeight);
+    fprintf(fileID, "%.16f\n", BEM(1).building.intHeat);
+    fprintf(fileID, "%.16f\n", BEM(1).building.intHeatNight);
+    fprintf(fileID, "%.16f\n", BEM(1).building.intHeatDay);
+    fprintf(fileID, "%.16f\n", BEM(1).building.intHeatFRad);
+    fprintf(fileID, "%.16f\n", BEM(1).building.intHeatFLat);
+    fprintf(fileID, "%.16f\n", BEM(1).building.infil);
+    fprintf(fileID, "%.16f\n", BEM(1).building.vent);
+    fprintf(fileID, "%.16f\n", BEM(1).building.glazingRatio);
+    fprintf(fileID, "%.16f\n", BEM(1).building.uValue);
+    fprintf(fileID, "%.16f\n", BEM(1).building.shgc);
+    fprintf(fileID, "%s\n", BEM(1).building.condType);
+    fprintf(fileID, "%.16f\n", BEM(1).building.cop);
+    fprintf(fileID, "%.16f\n", BEM(1).building.coolSetpointDay);
+    fprintf(fileID, "%.16f\n", BEM(1).building.coolSetpointNight);
+    fprintf(fileID, "%.16f\n", BEM(1).building.heatSetpointDay);
+    fprintf(fileID, "%.16f\n", BEM(1).building.heatSetpointNight);
+    fprintf(fileID, "%.16f\n", BEM(1).building.coolCap);
+    fprintf(fileID, "%.16f\n", BEM(1).building.heatCap);
+    fprintf(fileID, "%.16f\n", BEM(1).building.heatEff);
+    fprintf(fileID, "%.16f\n", BEM(1).building.mSys);
+    fprintf(fileID, "%.16f\n", BEM(1).building.indoorTemp);
+    fprintf(fileID, "%.16f\n", BEM(1).building.indoorHum);
+    fprintf(fileID, "%.16f\n", BEM(1).building.FanMax);
+    fprintf(fileID, '%s\n', BEM(1).building.Type{:});
+    fprintf(fileID, '%s\n', BEM(1).building.Era{:});
+    fprintf(fileID, '%s\n', BEM(1).building.Zone{:});
+    fclose(fileID);
+    %}
+        
+        
+        
     % =========================================================================
     % Section 7 - UWG main section
     % =========================================================================
@@ -537,11 +589,11 @@ function [new_climate_file] = UWG(CL_EPW_PATH,CL_EPW,CL_XML_PATH,CL_XML,CL_RE_PA
     % Data dump variables
     time = transpose(1:1:simTime.days*24);
     WeatherData (N,1) = Forcing;
-    UCMData (N,1) = UCMDef;
-    UBLData (N,1) = UBLDef;
+    UCMData (4,1) = UCMDef;
+    UBLData (4,1) = UBLDef;
     RSMData (N,1) = RSMDef;
     USMData (N,1) = RSMDef;
-
+    
     bTemp = zeros (N,numel(BEM));
     bRHum = zeros (N,numel(BEM));
     bPelec = zeros (N,numel(BEM));
@@ -568,6 +620,21 @@ function [new_climate_file] = UWG(CL_EPW_PATH,CL_EPW,CL_XML_PATH,CL_XML,CL_RE_PA
     bCOP = zeros(N,numel(BEM));
     bVent = zeros (N,numel(BEM));
     
+    %simtimenttemp = simTime.nt-1 - (30*24*12 + 12*22); % = 144 
+    % Artificially moving date up for testing -SV
+    %for it=1:12*13
+    %    simTime = UpdateDate(simTime);
+    %end
+    
+    disp(["month" simTime.month]);
+    disp(["day" simTime.day]);
+    disp(["hr" simTime.secDay/3600.0]);
+    
+    %msgID = '';
+    %msg = 'stop!';
+    %baseException = MException(msgID,msg);   
+    %throw(baseException);
+    
     for it=1:(simTime.nt-1)
 
         % Update water temperature (estimated)
@@ -578,9 +645,16 @@ function [new_climate_file] = UWG(CL_EPW_PATH,CL_EPW,CL_XML_PATH,CL_XML,CL_RE_PA
             forc.deepTemp = Tsoil(soilindex1,simTime.month);
             forc.waterTemp = Tsoil(3,simTime.month);
         end
-        
+
         % There's probably a better way to update the weather...
         simTime = UpdateDate(simTime);
+        
+        disp('--------------------');
+        disp(["month" simTime.month]);
+        disp(["day" simTime.day]);
+        disp(["hr" simTime.secDay/3600.0]);
+        
+        
         forc.infra = forcIP.infra(ceil(it*ph));       
         forc.wind = max(forcIP.wind(ceil(it*ph)),geoParam.windMin);     
         forc.uDir = forcIP.uDir(ceil(it*ph));
@@ -693,15 +767,9 @@ function [new_climate_file] = UWG(CL_EPW_PATH,CL_EPW,CL_XML_PATH,CL_XML,CL_RE_PA
             %}
         %end
         
-         
-        
-        if it == 1
-            RSM = VDM(RSM,forc,rural,geoParam,simTime,1);
-        end
-        break%RSM = VDM(RSM,forc,rural,geoParam,simTime,0);
-                
+        RSM = VDM(RSM,forc,rural,geoParam,simTime,1);
         %{
-        if it ==(simTime.nt-1) - (12*24*15 + 13*12)
+        if it == 1
             simTime.month
             simTime.day
             simTime.secDay/3600.
@@ -716,14 +784,109 @@ function [new_climate_file] = UWG(CL_EPW_PATH,CL_EPW,CL_XML_PATH,CL_XML,CL_RE_PA
             fprintf(fileID, '%.16f\n', RSM.ublPres(:));
             fclose(fileID);
         end
-        %}
-        
-        %{        
+        %} 
+       
         % Calculate urban heat fluxes, update UCM & UBL
         [UCM,UBL,BEM] = UrbFlux(UCM,UBL,BEM,forc,geoParam,simTime,RSM);
+        
+        %{
+        if it==1
+            fileID = fopen('..\UWG_Python\tests\matlab_ref\matlab_bem\matlab_ref_bem_building_bemcalc_largeoffice_heating.txt','w');
+            format long;
+            fprintf(fileID, "%.16f\n", BEM(1).building.intHeat);
+            fprintf(fileID, "%.16f\n", BEM(1).building.intHeatNight);
+            fprintf(fileID, "%.16f\n", BEM(1).building.intHeatDay);
+            fprintf(fileID, "%.16f\n", BEM(1).building.indoorTemp);
+            fprintf(fileID, "%.16f\n", BEM(1).building.indoorHum);
+            fprintf(fileID, "%.16f\n", BEM(1).building.indoorRhum);
+            fprintf(fileID, "%.16f\n", BEM(1).building.nFloor);
+            fprintf(fileID, "%.16f\n", BEM(1).building.sensCoolDemand);
+            fprintf(fileID, "%.16f\n", BEM(1).building.sensHeatDemand);
+            fprintf(fileID, "%.16f\n", BEM(1).building.copAdj);
+            fprintf(fileID, "%.16f\n", BEM(1).building.dehumDemand);
+            fprintf(fileID, "%.16f\n", BEM(1).building.coolConsump);
+            fprintf(fileID, "%.16f\n", BEM(1).building.heatConsump);
+            fprintf(fileID, "%.16f\n", BEM(1).building.sensWaste);
+            fprintf(fileID, "%.16f\n", BEM(1).building.fluxMass);
+            fprintf(fileID, "%.16f\n", BEM(1).building.fluxWall);
+            fprintf(fileID, "%.16f\n", BEM(1).building.fluxRoof);
+            fprintf(fileID, "%.16f\n", BEM(1).building.fluxSolar);
+            fprintf(fileID, "%.16f\n", BEM(1).building.fluxWindow);
+            fprintf(fileID, "%.16f\n", BEM(1).building.fluxInterior);
+            fprintf(fileID, "%.16f\n", BEM(1).building.fluxInfil);
+            fprintf(fileID, "%.16f\n", BEM(1).building.fluxVent);
+            fprintf(fileID, "%.16f\n", BEM(1).building.ElecTotal);
+            fprintf(fileID, "%.16f\n", BEM(1).building.GasTotal);
+            fprintf(fileID, "%.16f\n", BEM(1).building.Qhvac);
+            fprintf(fileID, "%.16f\n", BEM(1).building.Qheat);
+            fclose(fileID);
+        end
+        %}
+        %{
+        if it==1
+            fileID = fopen('..\UWG_Python\tests\matlab_ref\matlab_urbflux\matlab_ref_urbflux_unit.txt','w');
+            format long;
+            fprintf(fileID, "%.16f\n", BEM(2).roof.emissivity);
+            fprintf(fileID, "%.16f\n", BEM(2).roof.layerTemp(1));
+            fprintf(fileID, "%.16f\n", BEM(2).roof.infra);
+            fprintf(fileID, "%.16f\n", BEM(2).mass.layerTemp(length(BEM(2).mass.layerTemp)));
+            fprintf(fileID, "%.16f\n", BEM(2).wall.emissivity);
+            fprintf(fileID, "%.16f\n", BEM(2).wall.layerTemp(1));
+            fprintf(fileID, "%.16f\n", BEM(2).wall.infra);
+            fprintf(fileID, "%.16f\n", BEM(2).wall.layerTemp(length(BEM(2).wall.layerTemp)));
+            fprintf(fileID, "%.16f\n", UCM.wallTemp);
+            fprintf(fileID, "%.16f\n", UCM.roofTemp);
+            fprintf(fileID, "%.16f\n", road.infra);
+            fprintf(fileID, "%.16f\n", UCM.roadTemp); 
+            fprintf(fileID, "%.16f\n", UCM.latHeat); %%% [] figure out how to test for this... empty list? 0?
+            fprintf(fileID, "%.16f\n", UBL.advHeat);
+            fprintf(fileID, "%.16f\n", UCM.ustar);
+            fprintf(fileID, "%.16f\n", UCM.ustarMod);
+            fprintf(fileID, "%.16f\n", UCM.uExch);
+            fprintf(fileID, "%.16f\n", UCM.canWind);
+            fprintf(fileID, "%.16f\n", UCM.turbU);
+            fprintf(fileID, "%.16f\n", UCM.turbV);
+            fprintf(fileID, "%.16f\n", UCM.turbW);
+            fprintf(fileID, "%.16f\n", UCM.windProf(length(UCM.windProf)));
+            fclose(fileID);
+        end
+        %}
         UCM = UCModel(UCM,BEM,UBL.ublTemp,forc,geoParam);
-        UBL = UBLModel(UBL,UCM,RSM,rural,forc,geoParam,simTime);  
+       
+        %{
+        if it==1
+            fileID = fopen('..\UWG_Python\tests\matlab_ref\matlab_ucm\matlab_ref_ucm_ucmodel.txt','w');
+            format long;
+            fprintf(fileID, "%.16f\n", UCM.Q_wall);
+            fprintf(fileID, "%.16f\n", UCM.Q_window);
+            fprintf(fileID, "%.16f\n", UCM.Q_hvac);
+            fprintf(fileID, "%.16f\n", UCM.ElecTotal);
+            fprintf(fileID, "%.16f\n", UCM.GasTotal);
+            fprintf(fileID, "%.16f\n", UCM.Q_road);
+            fprintf(fileID, "%.16f\n", UCM.Q_traffic);
+            fprintf(fileID, "%.16f\n", UCM.Q_vent);
+            fprintf(fileID, "%.16f\n", UCM.Q_ubl);
+            fprintf(fileID, "%.16f\n", UCM.roofTemp);
+            fprintf(fileID, "%.16f\n", UCM.wallTemp);
+            fprintf(fileID, "%.16f\n", UCM.treeSensHeat);
+            fprintf(fileID, "%.16f\n", UCM.sensHeat);
+            fprintf(fileID, "%.16f\n", UCM.canTemp);
+            fclose(fileID);
+        end
+        %}
 
+        UBL = UBLModel(UBL,UCM,RSM,rural,forc,geoParam,simTime);  
+        
+        %{
+        fileID = fopen('..\UWG_Python\tests\matlab_ref\matlab_ubl\matlab_ref_ublmodel.txt','w');
+        format long;
+        fprintf(fileID, "%.16f\n", UBL.ublTemp);
+        fprintf(fileID, "%.16f\n", sum(UBL.ublTempdx(:)));
+        fprintf(fileID, "%.16f\n", UBL.dayBLHeight);
+        fprintf(fileID, "%.16f\n", UBL.nightBLHeight);
+        fclose(fileID);
+        %}
+        
         % Experimental code to run diffusion model in the urban area
         Uroad = UCM.road;
         Uroad.sens = UCM.sensHeat;
@@ -731,17 +894,28 @@ function [new_climate_file] = UWG(CL_EPW_PATH,CL_EPW,CL_XML_PATH,CL_XML,CL_RE_PA
         Uforc.wind = UCM.canWind;
         Uforc.temp = UCM.canTemp;
         USM = VDM(USM,Uforc,Uroad,geoParam,simTime);     
-
+        format long;
+        
         % Update variables to output data dump
         if mod(simTime.secDay,simTime.timePrint) == 0 && n < N
             n = n + 1;
+            
             WeatherData (n) = forc;
             [~,~,UCM.canRHum,~,UCM.Tdp,~] = Psychrometrics (UCM.canTemp, UCM.canHum, forc.pres);
+            
+            %disp(it);
+            %UCM.canRHum
+            %disp('---');
+            %UCM.canTemp
+            %UCM.canHum
+            %forc.pres
+            %disp('-----------');
+            
             UBLData (n) = UBL;
             UCMData (n) = UCM;
             USMData (n) = USM;
             RSMData (n) = RSM;
-           
+            
             for i = 1:numel(BEM)
                 bTemp(n,i) = BEM(i).building.indoorTemp;
                 bVent(n,i) = BEM(i).building.vent;
@@ -769,28 +943,30 @@ function [new_climate_file] = UWG(CL_EPW_PATH,CL_EPW,CL_XML_PATH,CL_XML,CL_RE_PA
                 bTmassin(n,i) = BEM(i).mass.layerTemp(1);
                 bCOP(n,i) = BEM(i).building.copAdj;
             end
-            progressbar(it/simTime.nt); % Print progress
-            %}
+            progressbar(it/simTime.nt); % Print progress        
         end
-
     end
-    %progressbar(1); % Close progress bar
-    %{
+    
+    progressbar(1); % Close progress bar
+    
     % =========================================================================
     % Section 8 - Writing new EPW file
     % =========================================================================
+    %%{
     if strcmp('Yes',writeEPW)
         disp('Calculating new Temperature and humidity values')
+        
         for iJ = 1:numel(UCMData)
-            epwinput.values{iJ+simTime.timeInitial-8,7}{1,1} = num2str(UCMData(iJ).canTemp- 273.15,'%0.1f'); % dry bulb temperature  [?C]
-            epwinput.values{iJ+simTime.timeInitial-8,8}{1,1} = num2str(UCMData(iJ).Tdp,'%0.1f'); % dew point temperature [?C]
-            epwinput.values{iJ+simTime.timeInitial-8,9}{1,1} = num2str(UCMData(iJ).canRHum,'%0.0f'); % relative humidity     [%]
-            epwinput.values{iJ+simTime.timeInitial-8,22}{1,1} = num2str(WeatherData(iJ).wind,'%0.1f'); % wind speed [m/s]
+            epwinput.values{iJ+simTime.timeInitial-8,7}{1,1} = num2str(UCMData(iJ).canTemp- 273.15,'%0.16f'); % dry bulb temperature  [?C]
+            epwinput.values{iJ+simTime.timeInitial-8,8}{1,1} = num2str(UCMData(iJ).Tdp,'%0.16f'); % dew point temperature [?C]
+            epwinput.values{iJ+simTime.timeInitial-8,9}{1,1} = num2str(UCMData(iJ).canRHum,'%0.16f'); % relative humidity     [%]
+            epwinput.values{iJ+simTime.timeInitial-8,22}{1,1} = num2str(WeatherData(iJ).wind,'%0.16f'); % wind speed [m/s]
         end
         disp('writing new EPW file');
 
         % Writing new EPW file
-        new_climate_file = strcat(newPathName,'\',newFileName,'.epw');
+        npth = "C:\Users\user\Desktop";
+        new_climate_file = strcat(npth,'\',newFileName,'.epw');
         epwnewid = fopen(new_climate_file,'w');
 
         for i = 1:8
@@ -807,11 +983,14 @@ function [new_climate_file] = UWG(CL_EPW_PATH,CL_EPW,CL_XML_PATH,CL_XML,CL_RE_PA
         end
         disp(['New climate file generated: ',new_climate_file]);
     end
-
+    
+    fclose all;
+    %%}
+    %{
     % =========================================================================
     % Section 9 - Clean up & write data to Excel/Mat file
     % =========================================================================
-
+    
     if strcmp('Yes',writeMAT)
         save ('UWGdata.mat','RSMData','UCMData','UBLData','WeatherData','USMData','time');
     end
@@ -1063,7 +1242,7 @@ function [new_climate_file] = UWG(CL_EPW_PATH,CL_EPW,CL_XML_PATH,CL_XML,CL_RE_PA
         h = msgbox('Urban Weather Generation Complete',strcat('UWG',num2str(ver)),'help');
     end
     %}
-%end
+end
 
 function [newmat, newthickness] = procMat(materials,max_thickness,min_thickness,ext)
     % Pocesses material layer so that a material with single

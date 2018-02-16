@@ -103,7 +103,6 @@ classdef UBLDef
 end
 
 function [ublTemp,ublTempdx] = NightForc(ublTempdx,dt,h_UBL,paralLength,charLength,RSM,Csurf)
-
     % Night forcing (RSM.nzfor = number of layers of forcing)
     % Average potential temperature & wind speed of the profile
     intAdv1 = 0;

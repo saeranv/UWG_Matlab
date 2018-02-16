@@ -101,7 +101,57 @@ classdef Element
             obj.T_int = obj.layerTemp(end);
             
         end
-        
+        function obj = SurfFluxTest(obj,forc,parameter,simTime,humRef,tempRef,windRef,boundCond,intFlux)
+
+            % Calculated per unit area (m^2)
+            dens = forc.pres/(1000*0.287042*tempRef*(1.+1.607858*humRef)); % air density            
+            obj.aeroCond = 5.8+3.7*windRef;         % Convection coef (ref: UWG, eq. 12))
+            
+            if (obj.horizontal)     % For roof, mass, road
+                
+                % Evaporation (m s-1), Film water & soil latent heat
+                if obj.waterStorage > 0
+                    qtsat = qsat(obj.layerTemp(1),forc.pres,parameter);
+                    eg = obj.aeroCond*parameter.colburn*dens*(qtsat-humRef)/parameter.waterDens/parameter.cp;
+                    obj.waterStorage = min(obj.waterStorage + simTime.dt*(forc.prec-eg),parameter.wgmax);
+                    obj.waterStorage = max(obj.waterStorage,0);
+                    
+                else
+                    eg = 0;
+                end
+                soilLat = eg*parameter.waterDens*parameter.lv;
+                
+                % Winter, no veg
+                if simTime.month < parameter.vegStart && simTime.month > parameter.vegEnd
+                    obj.solAbs = (1-obj.albedo)*obj.solRec;
+                    vegLat = 0;
+                    vegSens = 0; 
+                else    % Summer, veg
+                    obj.solAbs = ((1-obj.vegCoverage)*(1-obj.albedo)+...
+                        obj.vegCoverage*(1-parameter.vegAlbedo))*obj.solRec;
+                    vegLat = obj.vegCoverage*parameter.grassFLat*(1-parameter.vegAlbedo)*obj.solRec;
+                    vegSens = obj.vegCoverage*(1.-parameter.grassFLat)*(1-parameter.vegAlbedo)*obj.solRec;
+                end
+                obj.lat = soilLat + vegLat;
+                
+                % Sensible & net heat flux 
+                obj.sens = vegSens + obj.aeroCond*(obj.layerTemp(1)-tempRef);
+                obj.flux = - obj.sens+obj.solAbs+obj.infra-obj.lat;
+                
+            else     % Vertical surface (wall)
+                obj.solAbs = (1-obj.albedo)*obj.solRec;
+                obj.lat = 0;
+                
+                % Sensible & net heat flux 
+                obj.sens = obj.aeroCond*(obj.layerTemp(1)-tempRef);
+                obj.flux = - obj.sens+obj.solAbs+obj.infra-obj.lat;
+            end
+            
+            obj.layerTemp = Conduction(obj,simTime.dt,obj.flux,boundCond,forc.deepTemp,intFlux);
+            obj.T_ext = obj.layerTemp(1);
+            obj.T_int = obj.layerTemp(end);
+            
+        end
         function t = Conduction(obj,dt,flx1,bc,temp2,flx2)
             t = obj.layerTemp;
             hc = obj.layerVolHeat;
