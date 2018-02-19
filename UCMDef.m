@@ -193,6 +193,7 @@ classdef UCMDef
                 building = BEM(j).building;
                 wall = BEM(j).wall;
                 T_indoor = building.indoorTemp;
+                
                 T_wall = wall.layerTemp(1);
                 R_glazing= building.glazingRatio;
                 A_wall = (1-R_glazing)*obj.facArea;
@@ -223,7 +224,7 @@ classdef UCMDef
                 
             % Solve for canyon temperature
             obj.canTemp = (H1 + Q)/H2;
-            
+
             % Heat flux based per m^2 of urban area
             obj.Q_road = h_conv*(T_road-obj.canTemp)*(1-obj.bldDensity);  % Sensible heat from road (W/m^2 of urban area)
             obj.Q_ubl = obj.Q_ubl + obj.uExch*Cp_air*dens*(obj.canTemp-T_ubl)*(1-obj.bldDensity);

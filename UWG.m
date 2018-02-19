@@ -1,4 +1,4 @@
-function [new_climate_file] = UWG(CL_EPW_PATH,CL_EPW,CL_XML_PATH,CL_XML,CL_RE_PATH,CL_RE)
+function [new_climate_file] = UWG(sim_start_hour,sim_end_hour,CL_EPW_PATH,CL_EPW,CL_XML_PATH,CL_XML,CL_RE_PATH,CL_RE)
     % =========================================================================
     %  THE URBAN WEATHER GENERATOR
     % =========================================================================
@@ -284,12 +284,12 @@ function [new_climate_file] = UWG(CL_EPW_PATH,CL_EPW,CL_XML_PATH,CL_XML,CL_RE_PA
         rural.vegCoverage = rurVegCover;
         T_init = weather.staTemp(1);
         H_init = weather.staHum(1);
-
+        
         geoParam = Param(h_ubl1,h_ubl2,h_ref,h_temp,h_wind,c_circ,maxDay,maxNight,...
             latTree,latGrss,albVeg,vegStart,vegEnd,nightStart,nightEnd,windMin,wgmax,c_exch,maxdx,...
             g, cp, vk, r, rv, lv, pi(), sigma, waterDens, lvtt, tt, estt, cl, cpv, b, cm, colburn);
         UBL = UBLDef('C',charLength,weather.staTemp(1),maxdx,geoParam.dayBLHeight,geoParam.nightBLHeight); 
-        
+            
         % Define Road Element & buffer to match ground temperature depth
         [roadMat, newthickness] = procMat(road,max_thickness,min_thickness,ext);
         
@@ -473,7 +473,10 @@ function [new_climate_file] = UWG(CL_EPW_PATH,CL_EPW,CL_XML_PATH,CL_XML,CL_RE_PA
                 building(i).coolingCapacity,...
                 building(i).heatingEfficiency,...
                 building(i).initialT + 273.15);
-
+                
+                
+                
+                
             % Define Urban Configuration [building,mass,wall,roof]
             BEM(i) = BEMDef(typology,mass,wall,roof,xmlTyp(i).dist/100);
             
@@ -542,7 +545,7 @@ function [new_climate_file] = UWG(CL_EPW_PATH,CL_EPW,CL_XML_PATH,CL_XML,CL_RE_PA
             BEM(j).building.heatCap = 9999;  
         end
     end
-    
+
     %{
     fileID = fopen('..\UWG_Python\tests\matlab_ref\matlab_bem\matlab_ref_bem_building_init_largeoffice.txt','w');
     format long;
@@ -581,8 +584,8 @@ function [new_climate_file] = UWG(CL_EPW_PATH,CL_EPW,CL_XML_PATH,CL_XML,CL_RE_PA
     % =========================================================================
     % Section 7 - UWG main section
     % =========================================================================
-    
-    N = simTime.days * 24;
+    esh = 24 - sim_end_hour;
+    N = simTime.days * 24 - sim_start_hour - esh;
     n = 0;
     ph = simTime.dt/3600;       % per hour
 
@@ -620,23 +623,20 @@ function [new_climate_file] = UWG(CL_EPW_PATH,CL_EPW,CL_XML_PATH,CL_XML,CL_RE_PA
     bCOP = zeros(N,numel(BEM));
     bVent = zeros (N,numel(BEM));
     
-    %simtimenttemp = simTime.nt-1 - (30*24*12 + 12*22); % = 144 
-    % Artificially moving date up for testing -SV
-    %for it=1:12*13
-    %    simTime = UpdateDate(simTime);
-    %end
+    % Only for testing: Artificially moving date up for testing -SV
+    sim_start_hour = 13;
+    sim_end_hour   = 20;
     
-    disp(["month" simTime.month]);
-    disp(["day" simTime.day]);
-    disp(["hr" simTime.secDay/3600.0]);
+    sim_step_ramp = 3600/simTime.dt*sim_start_hour;
+    for it=1:sim_step_ramp
+        simTime = UpdateDate(simTime);
+    end
+    substep = 3600/simTime.dt*(sim_start_hour + mod(24-sim_end_hour,24));
+    sim_step_halt = simTime.nt - substep;
+    N = substep/(3600/simTime.dt);  % total number of hours in simulation
     
-    %msgID = '';
-    %msg = 'stop!';
-    %baseException = MException(msgID,msg);   
-    %throw(baseException);
-    
-    for it=1:(simTime.nt-1)
-
+    for it=1:sim_step_halt
+        
         % Update water temperature (estimated)
         if n_soil == 0
             forc.deepTemp = mean([forcIP.temp]);            % for BUBBLE/CAPITOUL/Singapore only
@@ -645,16 +645,11 @@ function [new_climate_file] = UWG(CL_EPW_PATH,CL_EPW,CL_XML_PATH,CL_XML,CL_RE_PA
             forc.deepTemp = Tsoil(soilindex1,simTime.month);
             forc.waterTemp = Tsoil(3,simTime.month);
         end
-
+        
+        
         % There's probably a better way to update the weather...
         simTime = UpdateDate(simTime);
-        
-        disp('--------------------');
-        disp(["month" simTime.month]);
-        disp(["day" simTime.day]);
-        disp(["hr" simTime.secDay/3600.0]);
-        
-        
+        disp(["hr" simTime.secDay/3600]);
         forc.infra = forcIP.infra(ceil(it*ph));       
         forc.wind = max(forcIP.wind(ceil(it*ph)),geoParam.windMin);     
         forc.uDir = forcIP.uDir(ceil(it*ph));
@@ -684,6 +679,9 @@ function [new_climate_file] = UWG(CL_EPW_PATH,CL_EPW,CL_XML_PATH,CL_XML,CL_RE_PA
 
             % Update anthropogenic heat load for each hour (building & UCM)
             UCM.sensAnthrop = sensAnth*(SchTraffic(dayType,simTime.hourDay+1));
+            %disp('----');
+            %fprintf('%d; %d; %d',simTime.day, simTime.secDay);
+            %disp(simTime.secDay/3600.0);
             
             for i = 1:numel(BEM)
                 
@@ -692,7 +690,7 @@ function [new_climate_file] = UWG(CL_EPW_PATH,CL_EPW,CL_XML_PATH,CL_XML,CL_RE_PA
                 BEM(i).building.coolSetpointNight = BEM(i).building.coolSetpointDay;
                 BEM(i).building.heatSetpointDay = Sch(i).Heat(dayType,simTime.hourDay+1) + 273.15;
                 BEM(i).building.heatSetpointNight = BEM(i).building.heatSetpointDay;
-
+                
                 % Internal Heat Load Schedule (W/m^2 of floor area for Q)
                 BEM(i).Elec = Sch(i).Qelec*Sch(i).Elec(dayType,simTime.hourDay+1);
                 BEM(i).Light = Sch(i).Qlight*Sch(i).Light(dayType,simTime.hourDay+1);
@@ -785,7 +783,9 @@ function [new_climate_file] = UWG(CL_EPW_PATH,CL_EPW,CL_XML_PATH,CL_XML,CL_RE_PA
             fclose(fileID);
         end
         %} 
+        
        
+        
         % Calculate urban heat fluxes, update UCM & UBL
         [UCM,UBL,BEM] = UrbFlux(UCM,UBL,BEM,forc,geoParam,simTime,RSM);
         
@@ -851,8 +851,8 @@ function [new_climate_file] = UWG(CL_EPW_PATH,CL_EPW,CL_XML_PATH,CL_XML,CL_RE_PA
             fclose(fileID);
         end
         %}
+        
         UCM = UCModel(UCM,BEM,UBL.ublTemp,forc,geoParam);
-       
         %{
         if it==1
             fileID = fopen('..\UWG_Python\tests\matlab_ref\matlab_ucm\matlab_ref_ucm_ucmodel.txt','w');
@@ -875,8 +875,8 @@ function [new_climate_file] = UWG(CL_EPW_PATH,CL_EPW,CL_XML_PATH,CL_XML,CL_RE_PA
         end
         %}
 
-        UBL = UBLModel(UBL,UCM,RSM,rural,forc,geoParam,simTime);  
-        
+        UBL = UBLModel(UBL,UCM,RSM,rural,forc,geoParam,simTime); 
+        disp(UCM.canTemp-273.15);
         %{
         fileID = fopen('..\UWG_Python\tests\matlab_ref\matlab_ubl\matlab_ref_ublmodel.txt','w');
         format long;
@@ -895,13 +895,28 @@ function [new_climate_file] = UWG(CL_EPW_PATH,CL_EPW,CL_XML_PATH,CL_XML,CL_RE_PA
         Uforc.temp = UCM.canTemp;
         USM = VDM(USM,Uforc,Uroad,geoParam,simTime);     
         format long;
-        
+        disp('$$$');
+        disp(BEM(1).building.indoorTemp-273.15);
+        disp(BEM(2).building.indoorTemp-273.15);
+        disp('$$$');
         % Update variables to output data dump
         if mod(simTime.secDay,simTime.timePrint) == 0 && n < N
             n = n + 1;
             
+            %disp('----');
+            %fprintf('%d; %d; %d',simTime.day, simTime.secDay,simTime.secDay/3600.0);
+            
             WeatherData (n) = forc;
             [~,~,UCM.canRHum,~,UCM.Tdp,~] = Psychrometrics (UCM.canTemp, UCM.canHum, forc.pres);
+            
+            disp('-----------');
+            disp(UCM.canTemp-273.15);
+            disp(UCM.canRHum);
+            
+            disp('-----------');
+            %UCM.canTemp-273.15
+            %UCM.canHum,
+            
             
             %disp(it);
             %UCM.canRHum
@@ -943,11 +958,11 @@ function [new_climate_file] = UWG(CL_EPW_PATH,CL_EPW,CL_XML_PATH,CL_XML,CL_RE_PA
                 bTmassin(n,i) = BEM(i).mass.layerTemp(1);
                 bCOP(n,i) = BEM(i).building.copAdj;
             end
-            progressbar(it/simTime.nt); % Print progress        
+            %progressbar(it/simTime.nt); % Print progress        
         end
     end
     
-    progressbar(1); % Close progress bar
+    %progressbar(1); % Close progress bar
     
     % =========================================================================
     % Section 8 - Writing new EPW file
@@ -962,8 +977,7 @@ function [new_climate_file] = UWG(CL_EPW_PATH,CL_EPW,CL_XML_PATH,CL_XML,CL_RE_PA
             epwinput.values{iJ+simTime.timeInitial-8,9}{1,1} = num2str(UCMData(iJ).canRHum,'%0.16f'); % relative humidity     [%]
             epwinput.values{iJ+simTime.timeInitial-8,22}{1,1} = num2str(WeatherData(iJ).wind,'%0.16f'); % wind speed [m/s]
         end
-        disp('writing new EPW file');
-
+        
         % Writing new EPW file
         npth = "C:\Users\user\Desktop";
         new_climate_file = strcat(npth,'\',newFileName,'.epw');
@@ -1243,6 +1257,15 @@ function [new_climate_file] = UWG(CL_EPW_PATH,CL_EPW,CL_XML_PATH,CL_XML,CL_RE_PA
     end
     %}
 end
+
+function [msg] = throwException(msg)
+
+    msgID = '';
+    baseException = MException(msgID,msg);   
+    throw(baseException);
+    
+end
+
 
 function [newmat, newthickness] = procMat(materials,max_thickness,min_thickness,ext)
     % Pocesses material layer so that a material with single

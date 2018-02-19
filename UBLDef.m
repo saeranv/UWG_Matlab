@@ -70,7 +70,6 @@ classdef UBLDef
             % If dir & dif light is greater than threshold, use day 
             if sunlight > daylimit && time <= noon ||...
                     sunlight > nightlimit && time > noon || obj.sensHeat > 150                
-                
                 % Circulation velocity per Bueno 'the UWG', eq 8
                 h_UBL = obj.dayBLHeight;            % Day boundary layer height
                 eqTemp = RSM.tempProf(RSM.nzref);

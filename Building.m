@@ -101,7 +101,6 @@ classdef Building
         end
 
         function obj = BEMCalc(obj,UCM,BEM,forc,parameter,simTime)
-
             % Building Energy Model (some of these can be moved up)
             obj.ElecTotal = 0;
             obj.nFloor = max(UCM.bldHeight/obj.floorHeight,1);  % At least one floor
@@ -124,13 +123,13 @@ classdef Building
             T_mass = BEM.mass.layerTemp(1);             % Outer layer
             T_indoor = obj.indoorTemp;                  % Indoor temp (initial)
             T_can = UCM.canTemp;                        % Canyon temperature
-
+            
             % Normalize areas to building foot print [m^2/m^2(bld)]
             facArea = UCM.verToHor/UCM.bldDensity;      % [m2/m2(bld)]
             wallArea = facArea*(1.-obj.glazingRatio);   % [m2/m2(bld)]
             winArea = facArea*obj.glazingRatio;         % [m2/m2(bld)]
             massArea = 2*obj.nFloor-1;                  % ceiling/floor (top & bottom)
-
+                
             % Temperature set points (updated per building schedule)
             if simTime.secDay/3600 < parameter.nightSetEnd || simTime.secDay/3600 >= parameter.nightSetStart
                 T_cool = obj.coolSetpointNight;
@@ -141,7 +140,7 @@ classdef Building
                 T_heat = obj.heatSetpointDay;
                 obj.intHeat = obj.intHeatDay*obj.nFloor;
             end
-
+            
             % Indoor convection heat transfer coefficients
             zac_in_wall = 3.076;
             zac_in_mass = 3.076;
@@ -187,7 +186,6 @@ classdef Building
             % HVAC system (cooling demand = W/m^2 bld footprint)
             % -------------------------------------------------------------
             if obj.sensCoolDemand > 0 && UCM.canTemp > 288
-
                 % Cooling energy is the equivalent energy to bring a vol
                 % where sensCoolDemand = dens * Cp * x * (T_indoor - 10C) &
                 % given 7.8g/kg of air at 10C, assume 7g/kg of air
@@ -221,7 +219,6 @@ classdef Building
             % Heating system (heating demand = W/m^2 bld footprint)
             % -------------------------------------------------------------
             elseif obj.sensHeatDemand > 0 && UCM.canTemp < 288
-
                 % limit on heating capacity
                 obj.Qheat = min(obj.sensHeatDemand,obj.heatCap*obj.nFloor);
                 obj.heatConsump  = obj.Qheat / obj.heatEff;
@@ -231,13 +228,13 @@ classdef Building
                 Qdehum = 0;
                 obj.sensCoolDemand = 0;
             end
-
+            
             % -------------------------------------------------------------
             % Evolution of the internal temperature and humidity
             % -------------------------------------------------------------
             % wall, mass, roof, intload, infil, vent, hvac, heat, window
             Q = obj.intHeat + winTrans + obj.Qheat-obj.sensCoolDemand;
-
+            
             H1 = T_wall*wallArea*zac_in_wall + ...
                 T_mass*massArea*zac_in_mass + ...
                 T_ceil*zac_in_ceil + ...
@@ -278,7 +275,7 @@ classdef Building
             CpH20 = 4200;           % heat capacity of water
             T_hot = 49 + 273.15;    % Service water temp (assume no storage)
             obj.sensWaste = obj.sensWaste + (1/obj.heatEff-1)*(volSWH*CpH20*(T_hot - forc.waterTemp)) + BEM.Gas*(1-obj.heatEff)*obj.nFloor;
-
+            
             % Gas equip per floor + water usage per floor + heating/floor
             obj.GasTotal = BEM.Gas + volSWH*CpH20*(T_hot - forc.waterTemp)/obj.nFloor/obj.heatEff + obj.heatConsump;
 
