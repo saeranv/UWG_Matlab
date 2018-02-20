@@ -181,10 +181,12 @@ classdef UCMDef
             T_road = obj.road.layerTemp(1);
             h_conv = obj.road.aeroCond;
             H1 = T_road*h_conv*obj.roadArea;       % Heat (Sens) from road surface
-            H2 = h_conv*obj.roadArea;              
+            H2 = h_conv*obj.roadArea; 
+            
             H1 = H1 + T_ubl*obj.roadArea*obj.uExch*Cp_air*dens_ubl; % Heat from UBL
             H2 = H2 + obj.roadArea*obj.uExch*Cp_air*dens_ubl;
             Q = (obj.roofArea+obj.roadArea)*(obj.sensAnthrop + obj.treeSensHeat*obj.treeCoverage);
+
             
             % Building energy output to canyon, in terms of absolute (total) values
             for j = 1:numel(BEM)

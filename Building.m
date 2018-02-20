@@ -132,10 +132,16 @@ classdef Building
                 
             % Temperature set points (updated per building schedule)
             if simTime.secDay/3600 < parameter.nightSetEnd || simTime.secDay/3600 >= parameter.nightSetStart
+                %disp("night setpoint");
+                %disp(simTime.secDay/3600);
+                
                 T_cool = obj.coolSetpointNight;
                 T_heat = obj.heatSetpointNight;
                 obj.intHeat = obj.intHeatNight*obj.nFloor;
             else
+                %disp("day setpoint");
+                %disp(simTime.secDay/3600);
+                
                 T_cool = obj.coolSetpointDay;
                 T_heat = obj.heatSetpointDay;
                 obj.intHeat = obj.intHeatDay*obj.nFloor;
@@ -152,7 +158,7 @@ classdef Building
                 disp('!!!!!FATAL ERROR!!!!!!');
                 return;
             end
-
+            
             % -------------------------------------------------------------
             % Heat fluxes (per m^2 of bld footprint)
             % -------------------------------------------------------------
@@ -163,7 +169,7 @@ classdef Building
             QLinfil = volInfil * dens * parameter.lv *(UCM.canHum - obj.indoorHum);
             QLvent = volVent * dens * parameter.lv *(UCM.canHum - obj.indoorHum);
             QLintload = obj.intHeat * obj.intHeatFLat;
-
+            
             % Heat/Cooling load (W/m^2 of bld footprint), if any
             obj.sensCoolDemand = max(wallArea*zac_in_wall*(T_wall-T_cool)+...
                 massArea*zac_in_mass*(T_mass-T_cool)+...
@@ -181,7 +187,7 @@ classdef Building
                 volInfil*dens*parameter.cp*(T_can-T_heat)+...
                 volVent*dens*parameter.cp*(T_can-T_heat) + ...
                 winTrans),0);
-
+            
             % -------------------------------------------------------------
             % HVAC system (cooling demand = W/m^2 bld footprint)
             % -------------------------------------------------------------
@@ -193,7 +199,7 @@ classdef Building
                 % 0.9*0.0078)*parameter.lv
                 VolCool = obj.sensCoolDemand / (dens*parameter.cp*(T_indoor-283.15));
                 obj.dehumDemand = max(VolCool * dens * (obj.indoorHum - 0.9*0.0078)*parameter.lv,0);
-
+                fprintf("%s %f\n",["dehum" obj.dehumDemand]);   
                 if (obj.dehumDemand + obj.sensCoolDemand) > (obj.coolCap * obj.nFloor)
                     obj.Qhvac = obj.coolCap * obj.nFloor;
                     VolCool = VolCool / (obj.dehumDemand + obj.sensCoolDemand) * (obj.coolCap * obj.nFloor);
@@ -204,7 +210,7 @@ classdef Building
                 end
                 Qdehum = VolCool * dens * parameter.lv * (obj.indoorHum - 0.9*0.0078);
                 obj.coolConsump =(max(obj.sensCoolDemand+obj.dehumDemand,0))/obj.copAdj;
-
+                
                 % Waste heat from HVAC (per m^2 building foot print)
                 if strcmp(obj.condType,'AIR')
                     obj.sensWaste = max(obj.sensCoolDemand+obj.dehumDemand,0)+obj.coolConsump;

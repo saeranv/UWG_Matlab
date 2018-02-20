@@ -634,7 +634,7 @@ function [new_climate_file] = UWG(sim_start_hour,sim_end_hour,CL_EPW_PATH,CL_EPW
     substep = 3600/simTime.dt*(sim_start_hour + mod(24-sim_end_hour,24));
     sim_step_halt = simTime.nt - substep;
     N = substep/(3600/simTime.dt);  % total number of hours in simulation
-    
+    format short;
     for it=1:sim_step_halt
         
         % Update water temperature (estimated)
@@ -649,7 +649,10 @@ function [new_climate_file] = UWG(sim_start_hour,sim_end_hour,CL_EPW_PATH,CL_EPW
         
         % There's probably a better way to update the weather...
         simTime = UpdateDate(simTime);
-        disp(["hr" simTime.secDay/3600]);
+        format short;
+        fprintf("1,h=%.2f,s=%.2f\n", [simTime.secDay/3600 simTime.secDay]);
+            
+        
         forc.infra = forcIP.infra(ceil(it*ph));       
         forc.wind = max(forcIP.wind(ceil(it*ph)),geoParam.windMin);     
         forc.uDir = forcIP.uDir(ceil(it*ph));
@@ -679,9 +682,6 @@ function [new_climate_file] = UWG(sim_start_hour,sim_end_hour,CL_EPW_PATH,CL_EPW
 
             % Update anthropogenic heat load for each hour (building & UCM)
             UCM.sensAnthrop = sensAnth*(SchTraffic(dayType,simTime.hourDay+1));
-            %disp('----');
-            %fprintf('%d; %d; %d',simTime.day, simTime.secDay);
-            %disp(simTime.secDay/3600.0);
             
             for i = 1:numel(BEM)
                 
@@ -876,7 +876,7 @@ function [new_climate_file] = UWG(sim_start_hour,sim_end_hour,CL_EPW_PATH,CL_EPW
         %}
 
         UBL = UBLModel(UBL,UCM,RSM,rural,forc,geoParam,simTime); 
-        disp(UCM.canTemp-273.15);
+        %disp(UCM.canTemp-273.15);
         %{
         fileID = fopen('..\UWG_Python\tests\matlab_ref\matlab_ubl\matlab_ref_ublmodel.txt','w');
         format long;
@@ -894,11 +894,7 @@ function [new_climate_file] = UWG(sim_start_hour,sim_end_hour,CL_EPW_PATH,CL_EPW
         Uforc.wind = UCM.canWind;
         Uforc.temp = UCM.canTemp;
         USM = VDM(USM,Uforc,Uroad,geoParam,simTime);     
-        format long;
-        disp('$$$');
-        disp(BEM(1).building.indoorTemp-273.15);
-        disp(BEM(2).building.indoorTemp-273.15);
-        disp('$$$');
+
         % Update variables to output data dump
         if mod(simTime.secDay,simTime.timePrint) == 0 && n < N
             n = n + 1;
@@ -908,11 +904,13 @@ function [new_climate_file] = UWG(sim_start_hour,sim_end_hour,CL_EPW_PATH,CL_EPW
             
             WeatherData (n) = forc;
             [~,~,UCM.canRHum,~,UCM.Tdp,~] = Psychrometrics (UCM.canTemp, UCM.canHum, forc.pres);
-            
+            if simTime.secDay/3600 == 16
+                disp(">>>>>>>>>>>>>>");
+            end
             disp('-----------');
+            fprintf("1,h=%.2f,s=%.2f\n", [simTime.secDay/3600 simTime.secDay]);
             disp(UCM.canTemp-273.15);
             disp(UCM.canRHum);
-            
             disp('-----------');
             %UCM.canTemp-273.15
             %UCM.canHum,

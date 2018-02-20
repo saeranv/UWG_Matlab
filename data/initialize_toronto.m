@@ -69,9 +69,9 @@ SchTraffic = [0.2 0.2 0.2 0.2 0.2 0.4 0.7 0.9 0.9 0.6 0.6 0.6 0.6 0.6 0.7 0.8 0.
 bld = [0 0 0;       % FullServiceRestaurant
     0 0 0;          % Hospital
     0 0 0;          % LargeHotel
-    0 0.4 0;        % LargeOffice
+    0 0 0;        % LargeOffice
     0 0 0;          % MediumOffice
-    0 0.6 0;        % MidriseApartment
+    0 1 0;        % MidriseApartment
     0 0 0;          % OutPatient
     0 0 0;          % PrimarySchool
     0 0 0;          % QuickServiceRestaurant
