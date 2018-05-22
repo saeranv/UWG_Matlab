@@ -150,7 +150,7 @@ classdef Building
             elseif(T_ceil <= T_indoor);
                 zac_in_ceil  = 4.040;
             else
-                disp('!!!!!FATAL ERROR!!!!!!');
+                disp('!!!!--!FATAL ERROR!!!!!!');
                 return;
             end
                         
@@ -255,8 +255,9 @@ classdef Building
             obj.indoorTemp = (H1 + Q)/H2;
             obj.indoorHum = obj.indoorHum + simTime.dt/(dens * parameter.lv * UCM.bldHeight) * (...
                 QLintload + QLinfil + QLvent - Qdehum);
-            [~,~,obj.indoorRhum,~,~,~] = Psychrometrics (obj.indoorTemp, obj.indoorHum, forc.pres);
-
+            
+            [~,~,obj.indoorRhum,~,~,~] = Psychrometrics(obj.indoorTemp, obj.indoorHum, forc.pres);
+            
             % These are used for element calculation (per m^2 of element area)
             obj.fluxWall = zac_in_wall *(T_indoor - T_wall);
             obj.fluxRoof = zac_in_ceil *(T_indoor - T_ceil);
@@ -295,7 +296,6 @@ function [Tdb, w, phi, h, Tdp, v] = Psychrometrics (Tdb_in, w_in, P)
     % h (enthalpy) in J/kg of dry air
     % v (specific volume) in m3/kg of dry air
     % P (Atmospheric Station Pressure) in Pa
-
     c_air = 1006;   %J/kg, value from ASHRAE Fundamentals
     hlg = 2501000;  %J/kg, value from ASHRAE Fundamentals
     cw  = 1860;     %J/kg, value from ASHRAE Fundamentals
@@ -303,7 +303,7 @@ function [Tdb, w, phi, h, Tdp, v] = Psychrometrics (Tdb_in, w_in, P)
 
     Tdb = Tdb_in - 273.15;
     w = w_in;
-
+    
     % phi calculation from Tdb and w
     Pw = w*P/(0.621945+w);              % Partial pressure of water wapor
     Pws = Saturation_pressure(Tdb);
@@ -312,7 +312,7 @@ function [Tdb, w, phi, h, Tdp, v] = Psychrometrics (Tdb_in, w_in, P)
     h = c_air*Tdb+w*(hlg+cw*Tdb);       % Enthalpy
     v = 0.287042*(Tdb+273.15)*(1+1.607858*w)/P; % Specific volume 
 
-    % Dew point 
+    % Dew point
     pw = (P*w)/(0.621945+w); % water vapor partial pressure in kPa
     alpha = log(pw);
     Tdp = 6.54 + 14.526*alpha+0.7389*(alpha^2)+0.09486*(alpha^3)+0.4569*(pw^0.1984); % valid for Tdp between 0 C and 93 C

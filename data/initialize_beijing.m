@@ -8,7 +8,7 @@
 % Main simulation parameters
 Month = 1;              % starting month (1-12)
 Day = 1;                % starting day (1-31)
-nDay = 31;              % number of days
+nDay = 365;              % number of days
 dtSim = 300;            % simulation time step (s)
 dtWeather = 3600;       % weather time step (s) 
 autosize = 0;           % autosize HVAC (1 or 0)
@@ -36,9 +36,9 @@ windMin = 1.0;          % min wind speed (m/s)
 h_obs = 0.1;            % rural average obstacle height (m)
 
 % Urban characteristics
-bldHeight = 10;         % average building height (m)
+bldHeight = 51;         % average building height (m)
 h_mix = 1;              % fraction of waste heat to canyon
-bldDensity = 0.5;       % urban area building plan density (0-1)
+bldDensity = 0.7;       % urban area building plan density (0-1)
 verToHor = 0.8;         % urban area vertical to horizontal ratio
 h_floor = 3.05;         % average floor height
 charLength = 1000;      % urban area characteristic length (m)
@@ -49,13 +49,13 @@ sensAnth = 20;          % non-building sens heat (W/m^2)
 latAnth = 2;            % non-building latent heat (W/m^2) (currently not used)
 
 % Vegetatin parameters
-vegCover = 0.2;         % urban area veg coverage ratio (0-1)
+vegCover = 0.4;         % urban area veg coverage ratio (0-1)
 treeCoverage = 0.1;     % urban area tree coverage ratio (0-1)
-vegStart = 4;           % vegetation start month
-vegEnd = 10;            % vegetation end month
+vegStart = 5;           % vegetation start month
+vegEnd = 9;            % vegetation end month
 albVeg = 0.25;          % Vegetation albedo
 latGrss = 0.4;          % latent fraction of grass
-latTree = 0.6;          % latent fraction of tree
+latTree = 0.8;          % latent fraction of tree
 rurVegCover = 0.9;      % rural vegetation cover
 
 % Traffic schedule [1 to 24 hour]
@@ -67,18 +67,18 @@ SchTraffic = [0.2 0.2 0.2 0.2 0.2 0.4 0.7 0.9 0.9 0.6 0.6 0.6 0.6 0.6 0.7 0.8 0.
 % Note that sum(bld) must be equal to 1
 bld = [0 0 0;       % FullServiceRestaurant
     0 0 0;          % Hospital
-    0 0 0;          % LargeHotel
-    0 0.4 0;        % LargeOffice
-    0 0 0;          % MediumOffice
-    0 0.6 0;        % MidriseApartment
+    0 0.2 0;          % LargeHotel
+    0 0 0;        % LargeOffice
+    0 0 0.2;          % MediumOffice
+    0 0 0.2;        % MidriseApartment
     0 0 0;          % OutPatient
-    0 0 0;          % PrimarySchool
+    0.2 0 0;          % PrimarySchool
     0 0 0;          % QuickServiceRestaurant
     0 0 0;          % SecondarySchool
-    0 0 0;          % SmallHotel
+    0 0.2 0;          % SmallHotel
     0 0 0;          % SmallOffice
     0 0 0;          % Stand-aloneRetail
-    0 0 0;          % StripMall
+    0 0.2 0;          % StripMall
     0 0 0;          % SuperMarket
     0 0 0];         % Warehouse
 
@@ -99,4 +99,4 @@ bld = [0 0 0;       % FullServiceRestaurant
 % 6B(Helena)                    14
 % 7(Duluth)                     15
 % 8(Fairbanks)                  16
-zone = 1;
+zone = 8;

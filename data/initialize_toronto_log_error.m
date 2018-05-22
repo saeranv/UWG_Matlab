@@ -8,7 +8,7 @@
 % Main simulation parameters
 Month = 1;              % starting month (1-12)
 Day = 1;                % starting day (1-31)
-nDay = 31;              % number of days
+nDay = 2;              % number of days
 dtSim = 300;            % simulation time step (s)
 dtWeather = 3600;       % weather time step (s) 
 autosize = 0;           % autosize HVAC (1 or 0)
@@ -18,9 +18,9 @@ RadFOcc = 0.2;          % Radiant heat fraction from occupant (normally 0.2)
 RadFEquip = 0.5;        % Radiant heat fraction from equipment (normally 0.5)
 RadFLight = 0.7;        % Radiant heat fraction from light (normally 0.7)
 writeMAT = 'No';        % Save data to .mat file 
-writeEPW = 'Yes';       % Generate EPW format
+writeEPW = 'No';       % Generate EPW format
 writeXLS = 'No';        % Generate XLSX output (Excel needed)
-EPW = '.\\data\\SGP_Singapore.486980_IWEC.epw';   % Rural weather data
+EPW = '.\\data\\CAN_ON_Toronto.716240_CWEC.epw';   % Rural weather data
 
 % Urban microclimate parameters
 h_ubl1 = 1000;          % ubl height - day (m)
@@ -36,10 +36,10 @@ windMin = 1.0;          % min wind speed (m/s)
 h_obs = 0.1;            % rural average obstacle height (m)
 
 % Urban characteristics
-bldHeight = 10;         % average building height (m)
+bldHeight = 16;         % average building height (m)
 h_mix = 1;              % fraction of waste heat to canyon
-bldDensity = 0.5;       % urban area building plan density (0-1)
-verToHor = 0.8;         % urban area vertical to horizontal ratio
+bldDensity = 0.3;       % urban area building plan density (0-1)
+verToHor = 0.3;         % urban area vertical to horizontal ratio
 h_floor = 3.05;         % average floor height
 charLength = 1000;      % urban area characteristic length (m)
 maxdx = 250;            % Max Dx (m)
@@ -50,7 +50,7 @@ latAnth = 2;            % non-building latent heat (W/m^2) (currently not used)
 
 % Vegetatin parameters
 vegCover = 0.2;         % urban area veg coverage ratio (0-1)
-treeCoverage = 0.1;     % urban area tree coverage ratio (0-1)
+treeCoverage = 0.4;     % urban area tree coverage ratio (0-1)
 vegStart = 4;           % vegetation start month
 vegEnd = 10;            % vegetation end month
 albVeg = 0.25;          % Vegetation albedo

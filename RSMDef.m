@@ -135,9 +135,16 @@ classdef RSMDef
             obj.tempProf = DiffusionEquation(obj.nzref,simTime.dt,...
                 obj.tempProf,obj.densityProfC,obj.densityProfS,cd,obj.dz);
             % compute wind profile
+            %disp('checklog');
+            %disp(obj.disp);
             for iz=1:obj.nzref
                 obj.windProf(iz) = ustarRur/parameter.vk*...
                     log((obj.z(iz)-obj.disp)/obj.z0r);
+                if obj.z(iz)==2
+                    %disp(obj.z(iz));
+                    %disp(obj.disp);
+                    %disp(log((obj.z(iz)-obj.disp)));
+                end
             end
             % Average pressure
             obj.ublPres = 0;
@@ -215,7 +222,24 @@ function [Kt,ustar] = DiffusionCoefficient(rho,z,dz,z0,disp,...
     end
     % lenght scales (l_up, l_down, l_k, l_eps)
     [dlu,dld] = DissipationBougeault(parameter.g,nz,z,dz,te,th);
+    %fprintf("%.16f\nnz-\n", nz);
+    %fprintf("%.16f\nz-\n",z);
+    %fprintf("%.16f\ndz-\n",dz);
+    %fprintf("%.16f\nte-\n",te);
+    %fprintf("%.16f\nth-\n",th);
+    %fprintf("%.16f\n",dlu(1));
+    %fprintf("----\n");
     [dld,dls,dlk]= LengthBougeault(nz,dld,dlu,z);
+    
+    %%{
+    %fileID = fopen('..\urbanWeatherGentests\tests\matlab_ref\matlab_rsmdef\matlab_rsmdef_dissipation_bougeault.txt','w');
+    %fileID = fopen('C:\saeran\master\git\urbanWeatherGen\tests\matlab_ref\matlab_rsmdef\matlab_rsmdef_dissipation_bougeault.txt','w');
+    %format long;
+    %fprintf(fileID, "%.16f\n", dlu(:));
+    %fprintf(fileID, "%.16f\n", dld(:));
+    %fclose(fileID);
+    %%}
+    
     % Boundary-layer diffusion coefficient
     for iz=1:nz
        Kt(iz) = 0.4*dlk(iz)*sqrt(te(iz));

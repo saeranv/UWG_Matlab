@@ -7,7 +7,6 @@ function [Tdb, w, phi, h, Tdp, v] = Psychrometrics (Tdb_in, w_in, P)
     % h (enthalpy) in J/kg of dry air
     % v (specific volume) in m3/kg of dry air
     % P (Atmospheric Station Pressure) in Pa
-
     c_air = 1006;   %J/kg, value from ASHRAE Fundamentals
     hlg = 2501000;  %J/kg, value from ASHRAE Fundamentals
     cw  = 1860;     %J/kg, value from ASHRAE Fundamentals

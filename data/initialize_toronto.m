@@ -6,9 +6,9 @@
 % are maintained.
 
 % Main simulation parameters
-Month = 1;              % starting month (1-12)
+Month = 6;              % starting month (1-12)
 Day = 1;                % starting day (1-31)
-nDay = 31;              % number of days
+nDay = 30;              % number of days
 dtSim = 300;            % simulation time step (s)
 dtWeather = 3600;       % weather time step (s) 
 autosize = 0;           % autosize HVAC (1 or 0)
@@ -20,7 +20,8 @@ RadFLight = 0.7;        % Radiant heat fraction from light (normally 0.7)
 writeMAT = 'No';        % Save data to .mat file 
 writeEPW = 'Yes';       % Generate EPW format
 writeXLS = 'No';        % Generate XLSX output (Excel needed)
-EPW = '.\\data\\SGP_Singapore.486980_IWEC.epw';   % Rural weather data
+EPW = '.\\data\\CAN_ON_Toronto.716240_CWEC_UWG_Matlab.epw';
+%EPW = '.\\data\\SGP_Singapore.486980_IWEC.epw';   % Rural weather data
 
 % Urban microclimate parameters
 h_ubl1 = 1000;          % ubl height - day (m)

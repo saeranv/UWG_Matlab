@@ -77,8 +77,7 @@ classdef UBLDef
                 eqWind = RSM.windProf(RSM.nzref);
                 
                 Csurf = UCM.Q_ubl*simTime.dt/(h_UBL*refDens*Cp);
-                u_circ = k_w*(g*heatDif/Cp/refDens/eqTemp*h_UBL)^(1./3.);
-                                
+                u_circ = k_w*(g*heatDif/Cp/refDens/eqTemp*h_UBL)^(1./3.);         
                 if v_wind > u_circ    % Forced problem (usually this)
                     advCoef  = obj.orthLength*eqWind*simTime.dt/obj.urbArea*1.4;
                     obj.ublTemp = (Csurf+advCoef*eqTemp + obj.ublTemp)/(1 + advCoef);
@@ -93,6 +92,7 @@ classdef UBLDef
             % Night 
             % ---------------------------------------------------------------------
             else
+                %disp("night force");
                 h_UBL = obj.nightBLHeight;      % Night boundary layer height
                 Csurf = UCM.Q_ubl*simTime.dt/(h_UBL*refDens*Cp);
                  [obj.ublTemp,obj.ublTempdx] = NightForc(obj.ublTempdx,simTime.dt,...
@@ -109,6 +109,8 @@ function [ublTemp,ublTempdx] = NightForc(ublTempdx,dt,h_UBL,paralLength,charLeng
     intAdv1 = 0;
     for iz=1:RSM.nzfor
         intAdv1 = intAdv1 + RSM.windProf(iz)*RSM.tempProf(iz)*RSM.dz(iz);
+        %disp("intadv");
+        %disp(RSM.windProf(iz));
     end
     advCoef1 = 1.4*dt/paralLength/h_UBL*intAdv1;
     

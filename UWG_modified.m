@@ -1,8 +1,27 @@
 function [new_climate_file] = UWG(CL_EPW_PATH,CL_EPW,CL_XML_PATH,CL_XML,CL_RE_PATH,CL_RE)
-    
+    % =========================================================================
+    %  THE URBAN WEATHER GENERATOR
+    % =========================================================================
+    % Orig. Author: B. Bueno & edited by A. Nakano & Lingfu Zhang
+    % Last modified by Joseph Yang (joeyang@mit.edu) - May, 2016
+    % 
+    % Notes
+    % a. When compiling, add 'z_meso.txt', 'RefDOE.mat','SchDef.m' to the list of files
+    % b. Program description can be found in the following papers & websites
+    %   - Joseph Yang's Master Thesis (2016)
+    %   - https://github.com/hansukyang/UWG_Matlab
+    % =========================================================================
+
     close all;
     ver = 4.1;
+    % 4.1 (beta) updates
+    %   - changed EPW output to rural wind speed again
+    %   - compatibility with xml re-established
+    %   - read in 'initialize.m' file for Matlab 
     
+    % =========================================================================
+    % Section 1 - Definitions for constants / other parameters
+    % =========================================================================
 
     min_thickness = 0.01;   % Minimum layer thickness (to prevent crashing) (m)
     max_thickness = 0.05;   % Maximum layer thickness (m)
@@ -116,7 +135,6 @@ function [new_climate_file] = UWG(CL_EPW_PATH,CL_EPW,CL_XML_PATH,CL_XML,CL_RE_PA
     % layer thickness control are only performed for XML. (should update) 
     [~,~,ext] = fileparts(xml_location);
     if strcmp(ext,'.m')
-        disp("Using .m file input.");
         % Run matlab script to generate UCM, UBL, etc.
         run(xml_location);
         nightStart = 18;        % arbitrary values (not used for XLSM)
@@ -209,170 +227,6 @@ function [new_climate_file] = UWG(CL_EPW_PATH,CL_EPW,CL_XML_PATH,CL_XML,CL_RE_PA
         end
         rural = Element(rural.albedo,rural.emissivity,newthickness,ruralMat,...
             rural.vegCoverage,rural.layerTemp(1),rural.horizontal);
-     elseif strcmp(ext,'.xml')
-         disp("Using .xml file input.");
-        % Some numbers not specified in XML
-        maxdx = 500;            % maximum discretization length for the UBL model (m)
-        circCoeff = 1.2;        %
-        dayThreshold = 200;     %
-        nightThreshold = 50;    %
-        windMin = 1;            % minimum wind speed (m s-1)
-        c_exch = 1;
-        autosize = 1;
-
-        % Process XML file to generate class elements
-        xml_input = xml_read(xml_location);
-        sim_dt = 300;           % Simulation time step (s)
-        weather_dt = 3600;      % Weather data time step (EPW) (s)
-
-        disp(['Urban Parameter file selected: ',xml_location]);
-
-        % Re-naming for file readability
-        xmlTyp(1) = xml_input.typology1;
-        xmlTyp(2) = xml_input.typology2;
-        xmlTyp(3) = xml_input.typology3;
-        xmlTyp(4) = xml_input.typology4;
-        building(1) = xmlTyp(1).building;
-        building(2) = xmlTyp(2).building;
-        building(3) = xmlTyp(3).building;
-        building(4) = xmlTyp(4).building;
-        xmlParam = xml_input.parameter;
-        xmlUCM = xml_input.urbanArea;
-        xmlRSite = xml_input.referenceSite;
-
-        % Simulation paramters
-        simTime = SimParam(sim_dt,weather_dt,xmlParam.simuStartMonth,...
-            xmlParam.simuStartDay, xmlParam.simuDuration);
-        weather = Weather(climate_data,simTime.timeInitial,simTime.timeFinal);
-        
-        forcIP = Forcing(weather.staTemp,weather); 
-        forc = Forcing;
-        
-        nightStart = mean([building.nightSetStart]);
-        nightEnd = mean([building.nightSetEnd]);
-        geoParam = Param(xmlUCM.daytimeBLHeight,xmlUCM.nighttimeBLHeight,...
-            xmlUCM.refHeight,xmlParam.tempHeight,xmlParam.windHeight,...
-            circCoeff,dayThreshold,nightThreshold,...
-            xmlUCM.treeLatent,xmlUCM.grassLatent,xmlUCM.vegAlbedo,xmlUCM.vegStart,xmlUCM.vegEnd,...
-            nightStart,nightEnd,windMin,wgmax,c_exch,maxdx,...
-            g, cp, vk, r, rv, lv, pi(), sigma, waterDens, lvtt, tt, estt, cl, cpv, b, cm, colburn);
-        
-        % Define Road Element & buffer to match ground temperature depth
-        urbanRoad = xmlUCM.urbanRoad;
-        [roadMat, newthickness] = procMat(urbanRoad.materials,max_thickness,min_thickness);
-        for i = 1:n_soil
-            if sum(newthickness) <= depth(i)
-                while(sum(newthickness)<depth(i))
-                    newthickness = [newthickness; max_thickness];
-                    roadMat = [roadMat soil];
-                end
-                soilindex1 = i;
-                break;
-            end
-        end
-        road = Element(urbanRoad.albedo,urbanRoad.emissivity,newthickness,roadMat,...
-            urbanRoad.vegetationCoverage,urbanRoad.initialTemperature + 273.15,urbanRoad.inclination);
-
-        % Define Rural Element
-        ruralRoad = xmlRSite.ruralRoad;
-        [ruralMat, newthickness] = procMat(ruralRoad.materials,max_thickness,min_thickness);
-        for i = 1:n_soil
-            if sum(newthickness) <= depth(i)
-                while(sum(newthickness)<depth(i))
-                    newthickness = [newthickness; max_thickness];
-                    ruralMat = [ruralMat soil];
-                end
-                soilindex2 = i;
-                break;
-            end
-        end
-        rural = Element(ruralRoad.albedo,ruralRoad.emissivity,newthickness,...
-            ruralMat,ruralRoad.vegetationCoverage,ruralRoad.initialTemperature + 273.15,ruralRoad.inclination);
-
-        frac_total = 0;
-        for i = 1:4
-            % Define Wall element
-            [wallMat, newthickness] = procMat(xmlTyp(i).construction.wall.materials,max_thickness,min_thickness);
-            xwall = xmlTyp(i).construction.wall;
-            wall = Element(xwall.albedo,xwall.emissivity,newthickness,wallMat,...
-                xwall.vegetationCoverage,xwall.initialTemperature + 273.15,xwall.inclination);
-
-            % Define Roof element
-            [roofMat, newthickness] = procMat(xmlTyp(i).construction.roof.materials,max_thickness,min_thickness);
-            xroof = xmlTyp(i).construction.roof;
-            roof = Element(xroof.albedo,xroof.emissivity,newthickness,roofMat,...
-                xroof.vegetationCoverage,xroof.initialTemperature + 273.15,xroof.inclination);
-
-            % Define Mass element
-            [massMat, newthickness] = procMat(xmlTyp(i).construction.mass.materials,max_thickness,min_thickness);
-            xmass = xmlTyp(i).construction.mass;
-            mass = Element(xmass.albedo,xmass.emissivity,newthickness,massMat,...
-                xmass.vegetationCoverage,xmass.initialTemperature + 273.15,xmass.inclination);
-
-            % Define building typology
-            typology = Building(building(i).floorHeight,...
-                building(i).nightInternalGains,...
-                building(i).dayInternalGains,...
-                building(i).radiantFraction,...
-                building(i).latentFraction,...
-                building(i).infiltration,...
-                building(i).ventilation,...
-                xmlTyp(i).construction.glazing.glazingRatio,...
-                xmlTyp(i).construction.glazing.windowUvalue,...
-                xmlTyp(i).construction.glazing.windowSHGC,...
-                building(i).coolingSystemType,...
-                building(i).coolingCOP,...
-                building(i).daytimeCoolingSetPoint + 273.15,...
-                building(i).nighttimeCoolingSetPoint + 273.15,...
-                building(i).daytimeHeatingSetPoint + 273.15,...
-                building(i).nighttimeHeatingSetPoint + 273.15,...
-                building(i).coolingCapacity,...
-                building(i).heatingEfficiency,...
-                building(i).initialT + 273.15);
-
-            % Define Urban Configuration [building,mass,wall,roof]
-            BEM(i) = BEMDef(typology,mass,wall,roof,xmlTyp(i).dist/100);
-            
-            % If only one typology is defined, break
-            frac_total = frac_total + xmlTyp(i).dist/100;
-            if frac_total >= 1
-                break;
-            end
-        end 
-
-        % Reference site class (also include VDM)
-        RSM = RSMDef(lat,lon,GMT,xmlRSite.averageObstacleHeight,...
-            weather.staTemp(1),weather.staPres(1),geoParam);
-
-
-        % Define average typology for UCM (weighted by floor space %)
-        SHGC = 0;
-        alb_wall = 0;
-        r_glaze = 0;
-        for i = 1:numel(BEM)
-            SHGC = SHGC + BEM(i).frac*BEM(i).building.shgc;
-            alb_wall = alb_wall + BEM(i).frac*BEM(i).wall.albedo;
-            r_glaze = r_glaze + BEM(i).frac*BEM(i).building.glazingRatio;
-        end
-        
-        T_init = weather.staTemp(1);
-        H_init = weather.staHum(1);
-
-        % Define UCM class
-        h_bld = xmlUCM.averageBuildingHeight;
-        dens = xmlUCM.siteCoverageRatio;
-        Qtraffic = xmlUCM.nonBldgLatentAnthropogenicHeat;
-        Ltraffic = xmlUCM.nonBldgSensibleHeat;
-        VtoH = xmlUCM.facadeToSiteRatio;
-        UCM = UCMDef(h_bld,dens,VtoH,xmlUCM.treeCoverage,Ltraffic,Qtraffic,...
-            T_init,H_init,weather.staUmod(1),geoParam,r_glaze,SHGC,alb_wall,road); 
-        UCM.h_mix = 1;
-        UBL = UBLDef('C',xmlUCM.charLength,weather.staTemp(1),geoParam.maxdx,geoParam.dayBLHeight,geoParam.nightBLHeight); 
-        USM = RSMDef(lat,lon,GMT,h_bld/10,weather.staTemp(1),weather.staPres(1),geoParam);
-
-    else
-        disp("Filetype not found.");
-        return;
     end  
 
     % =========================================================================
@@ -512,18 +366,17 @@ function [new_climate_file] = UWG(CL_EPW_PATH,CL_EPW,CL_XML_PATH,CL_XML,CL_RE_PA
         UCM = UCModel(UCM,BEM,UBL.ublTemp,forc,geoParam);
         UBL = UBLModel(UBL,UCM,RSM,rural,forc,geoParam,simTime);  
         
-        %fprintf("\nm=%d d=%d h=%.2f,s=%.2f\n", [simTime.month, simTime.day, simTime.secDay/3600 simTime.secDay]);
-        %fprintf("%.16f\n",UCM.canTemp-273.15);
+        fprintf("\n1,h=%.2f,s=%.2f\n", [simTime.secDay/3600 simTime.secDay]);
+        fprintf("%.16f\n",UCM.canTemp-273.15);
         
         % Experimental code to run diffusion model in the urban area
-        %Uroad = UCM.road;
-        %Uroad.sens = UCM.sensHeat;
-        %Uforc = forc;
-        %Uforc.wind = UCM.canWind;
-        %Uforc.temp = UCM.canTemp;
-        %USM = VDM(USM,Uforc,Uroad,geoParam,simTime);     
-        %delete this 
-        
+        Uroad = UCM.road;
+        Uroad.sens = UCM.sensHeat;
+        Uforc = forc;
+        Uforc.wind = UCM.canWind;
+        Uforc.temp = UCM.canTemp;
+        USM = VDM(USM,Uforc,Uroad,geoParam,simTime);     
+
         % Update variables to output data dump
         if mod(simTime.secDay,simTime.timePrint) == 0 && n < N
             n = n + 1;
@@ -532,8 +385,6 @@ function [new_climate_file] = UWG(CL_EPW_PATH,CL_EPW,CL_XML_PATH,CL_XML,CL_RE_PA
             
             %disp('-----------');
             %fprintf("1,h=%.2f,s=%.2f\n", [simTime.secDay/3600 simTime.secDay]);
-            %fprintf("m=%d d=%d h=%.2f,s=%.2f\n", [simTime.month, simTime.day, simTime.secDay/3600 simTime.secDay]);
-        
             %fprintf("%.16f\n",UCM.canTemp-273.15);
             %fprintf("%.16f\n",UCM.canRHum);
             %disp('-----------');
@@ -575,17 +426,19 @@ function [new_climate_file] = UWG(CL_EPW_PATH,CL_EPW,CL_XML_PATH,CL_XML,CL_RE_PA
         end
 
     end
+    %progressbar(1); % Close progress bar
     
+    %{
     % =========================================================================
     % Section 8 - Writing new EPW file
     % =========================================================================
     if strcmp('Yes',writeEPW)
         disp('Calculating new Temperature and humidity values')
         for iJ = 1:numel(UCMData)
-            epwinput.values{iJ+simTime.timeInitial-8,7}{1,1} = num2str(UCMData(iJ).canTemp- 273.15,'%0.16f'); % dry bulb temperature  [°C]
-            epwinput.values{iJ+simTime.timeInitial-8,8}{1,1} = num2str(UCMData(iJ).Tdp,'%0.16f'); % dew point temperature [°C]
-            epwinput.values{iJ+simTime.timeInitial-8,9}{1,1} = num2str(UCMData(iJ).canRHum,'%0.16f'); % relative humidity     [%]
-            epwinput.values{iJ+simTime.timeInitial-8,22}{1,1} = num2str(WeatherData(iJ).wind,'%0.16f'); % wind speed [m/s]
+            epwinput.values{iJ+simTime.timeInitial-8,7}{1,1} = num2str(UCMData(iJ).canTemp- 273.15,'%0.1f'); % dry bulb temperature  [°C]
+            epwinput.values{iJ+simTime.timeInitial-8,8}{1,1} = num2str(UCMData(iJ).Tdp,'%0.1f'); % dew point temperature [°C]
+            epwinput.values{iJ+simTime.timeInitial-8,9}{1,1} = num2str(UCMData(iJ).canRHum,'%0.0f'); % relative humidity     [%]
+            epwinput.values{iJ+simTime.timeInitial-8,22}{1,1} = num2str(WeatherData(iJ).wind,'%0.1f'); % wind speed [m/s]
         end
         disp('writing new EPW file');
 
@@ -607,9 +460,262 @@ function [new_climate_file] = UWG(CL_EPW_PATH,CL_EPW,CL_XML_PATH,CL_XML,CL_RE_PA
         end
         disp(['New climate file generated: ',new_climate_file]);
     end
+
+    % =========================================================================
+    % Section 9 - Clean up & write data to Excel/Mat file
+    % =========================================================================
+
+    if strcmp('Yes',writeMAT)
+        save ('UWGdata.mat','RSMData','UCMData','UBLData','WeatherData','USMData','time');
+    end
     
+    if strcmp('Yes',writeXLS)
+        
+        % Open Excel Automation server
+        file = 'UWGoutput.xlsx'; % This must be full path name
+        Excel = actxserver('Excel.Application');
+        Workbooks = Excel.Workbooks;
+    
+        % Open Excel file
+        Workbook=Workbooks.Open(file);
+        Excel.Visible=1;
+
+        output = 'UWGoutput.xlsx';
+        disp(['Writing output file: ',output]);
+
+        T_rur = transpose([WeatherData.temp])-273.15;
+        T_can = transpose([UCMData.canTemp])-273.15;
+        T_dp = transpose([UCMData.Tdp]);
+        T_ubl = transpose([UBLData.ublTemp])-273.15;
+        T_road = transpose([UCMData.roadTemp])-273.15;
+        T_wall = transpose([UCMData.wallTemp])-273.15;
+        T_roof = transpose([UCMData.roofTemp])-273.15;
+        Rh_can = transpose([UCMData.canRHum]);
+        Rh_rur = transpose([WeatherData.rHum]);
+        wind_can = transpose([UCMData.canWind]);
+        wind_rur = transpose([WeatherData.wind]);
+        SolRRoad = transpose([UCMData.SolRecRoad]);
+        SolRWall = transpose([UCMData.SolRecWall]);
+        SolRRoof = transpose([UCMData.SolRecRoof]);
+        UHI = T_can - T_rur;
+        Q_wall = transpose([UCMData.Q_wall]);
+        Q_road = transpose([UCMData.Q_road]);
+        Q_roof = transpose([UCMData.Q_roof]);
+        Q_window = transpose([UCMData.Q_window]);
+        Q_vent = transpose([UCMData.Q_vent]);
+        Q_ubl = transpose([UCMData.Q_ubl]);
+        Q_hvac = transpose([UCMData.Q_hvac]);
+        Q_traffic = transpose([UCMData.sensAnthrop]);
+        P_elec = transpose([UCMData.ElecTotal]);
+        P_gas = transpose([UCMData.GasTotal]);
+        Q_tree = transpose([UCMData.treeSensHeat]*UCM.treeCoverage);
+        Q_urb = Q_wall + Q_road + Q_vent + Q_window + Q_hvac + Q_traffic + Q_tree + Q_roof;
+
+        % Clear data in sheets & write heading
+        blank = repmat(char(0),[9000 27]);
+        Sheets = Excel.ActiveWorkBook.Sheets;
+
+        for i = 2:(4+numel(BEM))
+            sheet = get(Sheets, 'Item', i);
+            invoke(sheet, 'Activate');
+            Activesheet = Excel.Activesheet;
+            ActivesheetRange = get(Activesheet,'Range','A1:AA9000');
+            set(ActivesheetRange, 'Value', blank);
+        end        
+        heading = {'TIME','T_RUR','T_UCL','RH_RUR','RH_CAN','Wind_RUR','Wind_CAN','UHI','T_DP','T_UBL ','T_ROAD', 'T_WALL','T_ROOF', 'SolRRoad', 'SolRWall', 'SolRRoof','Q_WALL','Q_ROAD','Q_ROOF','Q_WNDW','Q_VENT','Q_UBL','Q_HVAC','Q_TRAF','P_ELC ','P_GAS','Q_URB'};
+        
+        % Sheet 2: Average data
+        sheet = get(Sheets, 'Item', 2);
+        invoke(sheet, 'Activate');
+        Activesheet = Excel.Activesheet;
+        ActivesheetRange = get(Activesheet,'Range','A1:AA1');
+        set(ActivesheetRange, 'Value', heading);
+        ActivesheetRange = get(Activesheet,'Range','A27:AA27');
+        set(ActivesheetRange, 'Value', heading);
+        
+        hours = transpose(1:1:24);
+        hT_rur = zeros (24,1);
+        hT_can = zeros (24,1);
+        hT_dp = zeros (24,1);
+        hT_ubl = zeros (24,1);
+        hT_road = zeros (24,1);
+        hT_wall = zeros (24,1);
+        hT_roof = zeros (24,1);
+        hRh_can = zeros (24,1);
+        hRh_rur = zeros (24,1);
+        hwind_can = zeros (24,1);
+        hwind_rur = zeros (24,1);
+        hSolRRoad = zeros (24,1);
+        hSolRWall = zeros (24,1);
+        hSolRRoof = zeros (24,1);
+        hQ_wall = zeros (24,1);
+        hQ_roof = zeros (24,1);
+        hQ_window = zeros (24,1);
+        hQ_road = zeros (24,1);
+        hQ_vent = zeros (24,1);
+        hQ_ubl = zeros (24,1);
+        hQ_hvac = zeros (24,1);
+        hQ_traffic = zeros(24,1);
+        hP_elec = zeros (24,1);
+        hP_gas = zeros (24,1);
+        hQ_urb = zeros (24,1);
+
+        days = simTime.days;        % Number of days in the simulation
+        for i = 1:N
+            hour = mod(i,24);
+            days = simTime.days;
+            if hour == 0
+                hour = 24;
+            end
+            hT_rur (hour) = hT_rur (hour) + T_rur(i)/days;
+            hT_can (hour) = hT_can (hour) + T_can(i)/days;
+            hT_dp (hour) = hT_dp (hour) + T_dp(i)/days;
+            hT_ubl (hour) = hT_ubl (hour) + T_ubl(i)/days;
+            hT_road (hour) = hT_road (hour) + T_road(i)/days;        
+            hT_wall (hour) = hT_wall (hour) + T_wall(i)/days;        
+            hT_roof (hour) = hT_roof (hour) + T_roof(i)/days;    
+            hRh_can (hour) = hRh_can (hour) + Rh_can(i)/days;
+            hRh_rur (hour) = hRh_rur (hour) + Rh_rur(i)/days;
+            hwind_can (hour) = hwind_can (hour) + wind_can(i)/days;
+            hwind_rur(hour) = hwind_rur (hour) + wind_rur(i)/days;
+            hSolRRoad (hour) = hSolRRoad(hour) + SolRRoad(i)/days;
+            hSolRWall (hour) = hSolRWall(hour) + SolRWall(i)/days;
+            hSolRRoof (hour) = hSolRRoof(hour) + SolRRoof(i)/days;
+            hQ_wall (hour) = hQ_wall (hour) + Q_wall(i)/days;
+            hQ_roof (hour) = hQ_roof (hour) + Q_roof(i)/days;
+            hQ_window (hour) = hQ_window (hour) + Q_window(i)/days;
+            hQ_road (hour) = hQ_road (hour) + Q_road(i)/days;
+            hQ_vent (hour) = hQ_vent (hour) + Q_vent(i)/days;
+            hQ_ubl (hour) = hQ_ubl (hour) + Q_ubl(i)/days;
+            hQ_hvac (hour) = hQ_hvac (hour) + Q_hvac(i)/days;
+            hQ_traffic (hour) = hQ_traffic (hour) + Q_traffic(i)/days;
+            hP_elec (hour) = hP_elec(hour) + P_elec(i)/days;
+            hP_gas (hour) = hP_gas(hour) + P_gas(i)/days;
+            hQ_urb (hour) = hQ_urb(hour) + Q_urb(i)/days;
+        end
+        hUHI = hT_can - hT_rur;
+
+        % Sheet 2: UCM data (hourly average & hourly data)
+        data = [hours,hT_rur,hT_can,hRh_rur,hRh_can,hwind_rur,hwind_can,hUHI,hT_dp,hT_ubl,hT_road,hT_wall,hT_roof,hSolRRoad,hSolRWall,hSolRRoof,hQ_wall,hQ_road,hQ_roof,hQ_window,hQ_vent,hQ_ubl,hQ_hvac,hQ_traffic,hP_elec,hP_gas,hQ_urb];
+        ActivesheetRange = get(Activesheet,'Range','A2:AA25');
+        set(ActivesheetRange, 'Value', data);
+
+        data = [time,T_rur,T_can,Rh_rur,Rh_can,wind_rur,wind_can,UHI,T_dp,T_ubl,T_road,T_wall,T_roof,SolRRoad,SolRWall,SolRRoof,Q_wall,Q_road,Q_roof,Q_window,Q_vent,Q_ubl,Q_hvac,Q_traffic,P_elec,P_gas,Q_urb];
+        datarange = strcat('A28:AA',int2str(numel(time)+27));
+        ActivesheetRange = get(Activesheet,'Range',datarange);
+        set(ActivesheetRange, 'Value', data);
+        
+        % Sheet 3 and onwards: Building data (hourly average & hourly data)
+        hbTemp = zeros (24,numel(BEM));
+        hbRHum = zeros (24,numel(BEM));
+        hbPelec = zeros (24,numel(BEM));
+        hbQgas = zeros (24,numel(BEM));
+        hbPequip = zeros (24,numel(BEM));
+        hbPlight = zeros (24,numel(BEM));
+        hbQocc = zeros (24,numel(BEM));
+        hbFluxMass = zeros (24,numel(BEM));
+        hbFluxRoof = zeros(24,numel(BEM));
+        hbFluxWall = zeros (24,numel(BEM));
+        hbFluxSolar = zeros (24,numel(BEM));
+        hbFluxWindow = zeros (24,numel(BEM));
+        hbFluxInfil = zeros (24,numel(BEM));
+        hbFluxVent = zeros (24,numel(BEM));
+        hbCoolConsump = zeros (24,numel(BEM));
+        hbHeatConsump = zeros (24,numel(BEM));
+        hbCOP = zeros(24,numel(BEM));
+        hbCoolDemand = zeros(24,numel(BEM));
+        hbTwallin = zeros(24,numel(BEM));
+        hbTroofin = zeros(24,numel(BEM));
+        hbTmassin = zeros(24,numel(BEM));
+
+        for i = 1:N
+            hour = mod(i,24);
+            if hour == 0
+                hour = 24;
+            end
+            hbTemp (hour,:) = hbTemp (hour,:) + bTemp(i,:)/days;
+            hbRHum (hour,:) = hbRHum (hour,:) + bRHum(i,:)/days;
+            hbPelec (hour,:) = hbPelec (hour,:) + bPelec(i,:)/days;
+            hbQgas (hour,:) = hbQgas (hour,:) + bQgas(i,:)/days;
+            hbPequip (hour,:) = hbPequip (hour,:) + bPequip(i,:)/days;
+            hbPlight (hour,:) = hbPlight (hour,:) + bPlight(i,:)/days;
+            hbQocc (hour,:) = hbQocc (hour,:) + bQocc(i,:)/days;
+            hbFluxMass (hour,:) = hbFluxMass (hour,:) + bFluxMass(i,:)/days;
+            hbFluxRoof (hour,:) = hbFluxRoof (hour,:) + bFluxRoof(i,:)/days;
+            hbFluxWall (hour,:) = hbFluxWall (hour,:) + bFluxWall(i,:)/days;
+            hbFluxSolar (hour,:) = hbFluxSolar (hour,:) + bFluxSolar(i,:)/days;
+            hbFluxWindow (hour,:) = hbFluxWindow (hour,:) + bFluxWindow(i,:)/days;
+            hbFluxInfil (hour,:) = hbFluxInfil (hour,:) + bFluxInfil(i,:)/days;
+            hbFluxVent (hour,:) = hbFluxVent (hour,:) + bFluxVent(i,:)/days;
+            hbCoolConsump (hour,:) = hbCoolConsump (hour,:) + bCoolConsump(i,:)/days;
+            hbHeatConsump (hour,:) = hbHeatConsump (hour,:) + bHeatConsump(i,:)/days;
+            hbCOP (hour,:) = hbCOP (hour,:) + bCOP(i,:)/days;
+            hbCoolDemand (hour,:) = hbCoolDemand (hour,:) + bCoolDemand(i,:)/days;
+            hbTwallin (hour,:) = hbTwallin (hour,:) + bTwallin(i,:)/days;
+            hbTroofin (hour,:) = hbTroofin (hour,:) + bTroofin(i,:)/days;
+            hbTmassin (hour,:) = hbTmassin (hour,:) + bTmassin(i,:)/days;
+        end
+        hbTemp = hbTemp - 273.15;
+        bTemp = bTemp -273.15;
+        hbTwallin = hbTwallin - 273.15;
+        bTwallin = bTwallin - 273.15;
+        hbTroofin = hbTroofin - 273.15;
+        bTroofin = bTroofin - 273.15;
+        bTmassin = bTmassin - 273.15;
+        hbTmassin = hbTmassin - 273.15;
+
+        heading = {'TIME','T_indoor','Rhum_ind','T_wall','T_ceil','T_mass','Pelec','Qgas','Pequip','Plight', 'Qocc', 'Qmass','Qroof','Qwall','Qsolar','Qwindow','Qinfil','Qvent','Pcool','QheatDmd','QCoolDmd','COP'};
+        for i = 1:numel(BEM)
+            
+            % Write headings
+            sheet = get(Sheets, 'Item', i+2);
+            invoke(sheet, 'Activate');
+            Activesheet = Excel.Activesheet;
+            ActivesheetRange = get(Activesheet,'Range','A1:V1');
+            set(ActivesheetRange, 'Value', heading);
+            ActivesheetRange = get(Activesheet,'Range','A27:V27');
+            set(ActivesheetRange, 'Value', heading);
+
+            % Write 24-hour average data
+            data = [hours,hbTemp(:,i),hbRHum(:,i),hbTwallin(:,i),hbTroofin(:,i),hbTmassin(:,i),hbPelec(:,i),hbQgas(:,i),hbPequip(:,i),hbPlight(:,i),hbQocc(:,i),hbFluxMass(:,i),hbFluxRoof(:,i),hbFluxWall(:,i),hbFluxSolar(:,i),...
+                hbFluxWindow(:,i),hbFluxInfil(:,i),hbFluxVent(:,i),hbCoolConsump(:,i),hbHeatConsump(:,i),hbCoolDemand(:,i),hbCOP(:,i)];
+            ActivesheetRange = get(Activesheet,'Range','A2:V25');
+            set(ActivesheetRange, 'Value', data);
+            
+            % Write hourly datas
+            data = [time,bTemp(:,i),bRHum(:,i),bTwallin(:,i),bTroofin(:,i),bTmassin(:,i),bPelec(:,i),bQgas(:,i),bPequip(:,i),bPlight(:,i),bQocc(:,i),bFluxMass(:,i),bFluxRoof(:,i),bFluxWall(:,i),bFluxSolar(:,i),...
+                bFluxWindow(:,i),bFluxInfil(:,i),bFluxVent(:,i),bCoolConsump(:,i),bHeatConsump(:,i),bCoolDemand(:,i),bCOP(:,i)];
+            datarange = strcat('A28:V',int2str(numel(time)+27));
+            ActivesheetRange = get(Activesheet,'Range',datarange);
+            set(ActivesheetRange, 'Value', data);
+        end
+        
+        % Write UWG version & disclaimer
+        release = strcat('Urban Weather Generator v',num2str(ver));
+        disclaimer = 'DISCLAIMER: The data is provided as is without warranty of any kind, either expressed or implied.';
+
+        sheet = get(Sheets, 'Item', 1);
+        invoke(sheet, 'Activate');
+        Activesheet = Excel.Activesheet;
+        ActivesheetRange = get(Activesheet,'Range','A1:A1');
+        set(ActivesheetRange, 'Value', release);
+        ActivesheetRange = get(Activesheet,'Range','A2:A2');
+        set(ActivesheetRange, 'Value', disclaimer);
+        
+        Save(Workbook);
+        delete(Excel);
+        clear Excel;
+
+    end
+
     fclose all;
-    
+
+    if fullyScripted
+        disp('Inputs scripted, supressing pop-up notification...');
+    else
+        h = msgbox('Urban Weather Generation Complete',strcat('UWG',num2str(ver)),'help');
+    end
+    %}
 end
 
 function [newmat, newthickness] = procMat(materials,max_thickness,min_thickness,ext)
